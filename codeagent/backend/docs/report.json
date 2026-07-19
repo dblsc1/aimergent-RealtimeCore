@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "module": "realtime_core",
+  "role": "backend",
+  "task": "realtime_core P1：建仓 + copycat 实时内核逐字抽取 + 测试落位 + 审核脚本 + 文档骨架",
+  "tier": "normal",
+  "status": "approved",
+  "summary": "新仓 dev/realtime_core 建立并在 feat/extract-kernel 逐字抽取 copycat 实时内核七生产文件+六测试（全 0 改动、逐字节一致），npm test 48/48 全绿，纯度门 16 PASS、逐字门 13 PASS，未做任何功能扩展。",
+  "git": {
+    "protocol": "embedded-self-v2",
+    "branch": "feat/extract-kernel",
+    "base": "bb645c82c4f9559c554e1eea6d20365ecb15f654",
+    "head": "SELF",
+    "diff_mode": "contains",
+    "changed_files": [
+      "code/backend/package.json",
+      "code/backend/src/transport/core/poll-machine.js",
+      "code/backend/src/transport/core/poll-machine.property.test.mjs",
+      "code/backend/src/transport/core/dispatch.js",
+      "code/backend/src/transport/core/dispatch.test.mjs",
+      "code/backend/src/transport/engine.js",
+      "code/backend/src/transport/engine.integration.test.mjs",
+      "code/backend/src/transport/channels.js",
+      "code/backend/src/transport/channels.test.mjs",
+      "code/backend/src/concurrency/locks.js",
+      "code/backend/src/concurrency/locks.mirror.test.mjs",
+      "code/backend/src/queue/ordering.js",
+      "code/backend/src/queue/ids.js",
+      "code/backend/src/queue/ids.test.mjs",
+      "review/reviewcode/check-kernel-purity.mjs",
+      "review/reviewcode/check-verbatim-extraction.mjs",
+      "module_docs/contract.md",
+      "module_docs/rules.md",
+      "codeagent/backend/docs/worklog/2026-07-19-backend-extract-kernel.md",
+      "codeagent/backend/docs/report.json"
+    ]
+  },
+  "contract": { "touched": false, "which": [], "consumes": [] },
+  "cross_module_impact": [],
+  "escalation": null,
+  "tests": {
+    "unit": { "passed": 48, "failed": 0, "cmd": "cd code/backend && npm test  (node --test, serial)" },
+    "e2e": { "passed": 0, "failed": 0, "flow": "无 e2e：库模块，无服务进程/对外端点" }
+  },
+  "self_check": {
+    "reviewcode_passed": true,
+    "attempts": 1,
+    "failed_gates": [],
+    "passed": true,
+    "detail": "check-kernel-purity.mjs 16 PASS/0 FAIL (scope=src/transport)；check-verbatim-extraction.mjs 13 PASS/0 FAIL（全 0 差异，并通过负向自检 exit=1）"
+  },
+  "verbatim_extraction": {
+    "files_checked": 13,
+    "production_files": 7,
+    "test_files": 6,
+    "import_lines_changed": 0,
+    "note": "目标目录映射保留全部相对 import，13 文件逐字节一致，无一行 import 需改"
+  },
+  "tech_debt": [
+    "ordering.js 无专属测试：源仓覆盖它的 queue-core/queue-invariants 测试纠缠了未抽取文件（normalize/views/transitions/dedupe），保守未抽（详见 worklog 决策 1）",
+    "符号命名带领域味（sessionLockKey/skillLockKey/orderedSessionEvents/genEventId 等），P5 契约定稿时中性化重命名候选（破 API）",
+    "locks.js 形参 skillId 为领域词——concurrency/ 无法纳入纯度门的直接原因（P2+ 中性化候选）",
+    "ordering.js void options 哑参 + maxEventSeq 无 null 兜底：逐字保留老行为，P2 清理候选"
+  ]
+}

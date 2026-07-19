@@ -1,0 +1,13 @@
+{
+  "name": "@aimergent/realtime-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Domain-agnostic realtime/state-machine kernel (long-poll lifecycle reducer + command dispatch + channel broadcast + keyed locks). v0.1 = verbatim extraction of copycat's verified realtime kernel.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

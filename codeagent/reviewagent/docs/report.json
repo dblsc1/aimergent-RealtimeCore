@@ -1,0 +1,80 @@
+{
+  "schema_version": 2,
+  "module": "realtime_core",
+  "role": "reviewagent",
+  "task": "P1 内核逐字抽取审核（feat/extract-kernel）",
+  "tier": "normal",
+  "status": "approved",
+  "summary": "七项审核清单全过：diff 集合与 report.json changed_files 完全相等；verbatim 13/13、purity 16/16（scope=transport）、npm test 48/48 独立重跑与自报一致；两道机械门经防空转自检（篡改后正确变红，还原后仓库逐字节回归干净）证明非空过；4 个抽查文件与 copycat 源逐字节 IDENTICAL；3 处任务单外偏离核实理由成立；留痕（report.json/commit trailer）合规；copycat 源仓未改（HEAD=46c2c94，clean）。业务代码一行未改。",
+  "git": {
+    "protocol": "embedded-self-v2",
+    "branch": "feat/extract-kernel",
+    "base": "bb645c82c4f9559c554e1eea6d20365ecb15f654",
+    "head": "SELF",
+    "diff_mode": "contains",
+    "changed_files": [
+      "review/reviewreport/2026-07-19-review-extract-kernel.md",
+      "module_docs/reviewlog.md",
+      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-extract-kernel-review.md",
+      "codeagent/reviewagent/docs/report.json"
+    ]
+  },
+  "review_target": {
+    "branch": "feat/extract-kernel",
+    "base": "bb645c82c4f9559c554e1eea6d20365ecb15f654",
+    "head": "2a039ae0892b0f7eb75064bbd566efeda921b2bf",
+    "diff_mode": "exact",
+    "changed_files": [
+      "code/backend/package.json",
+      "code/backend/src/concurrency/locks.js",
+      "code/backend/src/concurrency/locks.mirror.test.mjs",
+      "code/backend/src/queue/ids.js",
+      "code/backend/src/queue/ids.test.mjs",
+      "code/backend/src/queue/ordering.js",
+      "code/backend/src/transport/channels.js",
+      "code/backend/src/transport/channels.test.mjs",
+      "code/backend/src/transport/core/dispatch.js",
+      "code/backend/src/transport/core/dispatch.test.mjs",
+      "code/backend/src/transport/core/poll-machine.js",
+      "code/backend/src/transport/core/poll-machine.property.test.mjs",
+      "code/backend/src/transport/engine.integration.test.mjs",
+      "code/backend/src/transport/engine.js",
+      "codeagent/backend/docs/report.json",
+      "codeagent/backend/docs/worklog/2026-07-19-backend-extract-kernel.md",
+      "module_docs/contract.md",
+      "module_docs/rules.md",
+      "review/reviewcode/check-kernel-purity.mjs",
+      "review/reviewcode/check-verbatim-extraction.mjs"
+    ]
+  },
+  "contract": { "touched": false, "which": [], "consumes": [] },
+  "cross_module_impact": [],
+  "escalation": null,
+  "issues": [
+    {
+      "severity": "info",
+      "file": "codeagent/backend/docs/report.json",
+      "line": null,
+      "归属": "backend",
+      "summary": "backend 自报 tier=normal，按项目文档体系 normal 应配 diary，本仓当前无 diary。任务单本身（§8）未把 diary 列为交付物，且本任务由 CFO 直派、无独立模块 arbiter 定级，故不计入本次 verdict，仅登记供 CFO/未来 arbiter 参考。"
+    }
+  ],
+  "scripts": [
+    { "name": "check-verbatim-extraction.mjs", "result": "13 PASS / 0 FAIL" },
+    { "name": "check-kernel-purity.mjs", "result": "16 PASS / 0 FAIL (scope=code/backend/src/transport)" },
+    { "name": "npm test (node --test, serial)", "result": "48 pass / 0 fail / 0 skip" }
+  ],
+  "tests_verified": true,
+  "contract_conformance": true,
+  "anti_gaming_check": {
+    "verbatim_gate": "篡改 code/backend/src/queue/ordering.js 第20行非 import 代码 → 门 FAIL(exit1)；已还原，git status/diff 干净",
+    "purity_gate": "篡改 code/backend/src/transport/engine.js 插入 import 'fastify' → 门 FAIL(exit1)；已还原，git status/diff 干净"
+  },
+  "spot_check_verbatim": [
+    { "file": "code/backend/src/transport/core/poll-machine.js", "vs": "copycat services/realtime/core/poll-machine.js", "result": "IDENTICAL" },
+    { "file": "code/backend/src/concurrency/locks.js", "vs": "copycat services/session-state/locks.js", "result": "IDENTICAL" },
+    { "file": "code/backend/src/transport/channels.test.mjs", "vs": "copycat services/realtime/channels.test.mjs", "result": "IDENTICAL" },
+    { "file": "code/backend/src/transport/engine.js", "vs": "copycat services/realtime/engine.js", "result": "IDENTICAL" }
+  ],
+  "copycat_source_untouched": { "path": "/srv/aimergent/0/functions/copycat", "head": "46c2c94b16f93e03b5635219621e1f2e6fb68f06", "status": "clean" }
+}
