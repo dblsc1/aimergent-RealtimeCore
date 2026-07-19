@@ -2,44 +2,45 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "reviewagent",
-  "task": "P2 内核扩展审核（feat/p2-kernel-extension）：interval 形态 + POLL_TICK/SUPERSEDE + SUPERSEDED 终态 + keyed registry + awaitIdle + block-9 两 poller 参考验收 + 逐字门退役",
+  "task": "P3a 会话内核（上）审核（feat/p3a-log-cursors）：事件信封携 v / 存储端口 + 内存实现 + CAS / delivery publish-pull-ack-subscribe 复用 P2 longPoll / 四不变量 property 测 / 纯度门扩展 session scope",
   "tier": "normal",
   "status": "approved",
-  "summary": "七项新逻辑审核全过：①兼容门——6 个既有测试文件零改动（不在 15 项 diff 内），串行 72/72 全绿（48 既有 + 24 新）；②三条新 property 不变量经 2 处变异自检证明非空过（变异1 丢 DISARM_INTERVAL→不变量③ 变红；变异2 SUPERSEDE 停非终态→不变量① 变红），均 git checkout 还原、porcelain 空、72/72 复绿，业务代码一行未改；③亲读 copycat block-9 两 poller 源逐条核对参考实现，微时序适配裁定无可观测差异（同步 attempt 仍在同步点执行、竞争事件皆宏任务排在微任务后、SUPERSEDE/TIMEOUT/CLOSE 同步喂入）；④纯度门独立重跑 16/16，poll-machine grep 零 import/timer/Promise（仅注释命中），reference/ 在 scope 外理由成立，文件 ≤500；⑤5 处偏离更保守/合理无隐患；⑥越域仅 handoff.md 轻微越出任务单显式指令（铁律11 正当、lightweight 模式 CFO 已知情、标出不打回）；⑦backend report.json embedded-self-v2 机械核验全过（tracked/clean、SELF→f909d37、base 7d41f8e 祖先、changed_files 15 与 no-renames diff 集合完全相等）、trailer 合法、worklog 完整。verdict=approved，分支未合 main，交合并门。",
+  "summary": "八项全 PASS，verdict=approved。①兼容门：diff 16 文件全落 session/reference/docs/purity，transport/concurrency/queue/package.json 及 P1/P2 既有测试零触碰，check-kernel-purity 仅追加 session 段（零删除），串行 110/110 全绿（既有 72 + 新 38）。②不变量实质审（核心）：影子模型 harness（shadowIds + 每 group confirmed/cursor/high）语义正确、随机步真覆盖 append/pull/ack/casClash/crash；3 处变异注入 memory-log-store 证非空转——seq 跳号→property①②③⑤⑥ 5fail、游标回退→④ 1fail、CAS 双胜→①③⑥ 3fail，各 checkout 还原 porcelain 空。③崩溃重建：crash 步建全新 delivery 仅 logStore 幸存、内存态（lastSeqCache/pulledHigh）彻底重建无携旧态、不变量1 非虚过。④复用考验：session 生产零 setInterval/setTimeout/sleep、import 图仅同目录兄弟零 transport import，subscribe 组装注入 longPoll，集成+参考测试注入真实 engine.js longPoll——能力注入守住零 transport import 红线。⑤九偏离逐条成立（publish 追尾+CAS 兜底重试一次无静默丢失、ack 幂等合理、RangeError vs 专类可接受），无架构缺陷。⑥纯度门 36/36，session scope 五项经 3 处变异（Date.now/领域词/transport import）证非空转并还原。⑦铁律：≤500（最大 delivery.js 127）、零依赖、copycat/0 未动、文档三件 contract/rules/handoff 任务单显式授权同步一致无越域。⑧留痕：backend report embedded-self-v2 全过（SELF→6e66246、base c634568 祖先、changed_files 16 与 no-renames diff 精确相等、tracked/clean）、trailer 合法。分支未合 main，交合并门。",
   "git": {
     "protocol": "embedded-self-v2",
-    "branch": "feat/p2-kernel-extension",
-    "base": "7d41f8e5e39af47552a5450723497a34eca1c162",
+    "branch": "feat/p3a-log-cursors",
+    "base": "c634568359fb28b73284dc7fe01acc1e2e49625e",
     "head": "SELF",
     "diff_mode": "contains",
     "changed_files": [
-      "review/reviewreport/2026-07-19-review-p2-kernel-extension.md",
+      "review/reviewreport/2026-07-19-review-p3a-log-cursors.md",
       "module_docs/reviewlog.md",
-      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-p2-kernel-extension-review.md",
+      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-p3a-log-cursors-review.md",
       "codeagent/reviewagent/docs/report.json"
     ]
   },
   "review_target": {
-    "branch": "feat/p2-kernel-extension",
-    "base": "7d41f8e5e39af47552a5450723497a34eca1c162",
-    "head": "f909d377a778019e78ed5983688707e10179d4af",
+    "branch": "feat/p3a-log-cursors",
+    "base": "c634568359fb28b73284dc7fe01acc1e2e49625e",
+    "head": "6e66246e4f397514853f3c7a64ec4cbd0c5f188a",
     "diff_mode": "exact",
     "changed_files": [
-      "code/backend/reference/child-ab-next-question.ref.mjs",
-      "code/backend/reference/child-ab-next-question.ref.test.mjs",
-      "code/backend/reference/parent-options-waiter.ref.mjs",
-      "code/backend/reference/parent-options-waiter.ref.test.mjs",
-      "code/backend/src/concurrency/locks.awaitidle.test.mjs",
-      "code/backend/src/concurrency/locks.js",
-      "code/backend/src/transport/core/poll-machine.extended.property.test.mjs",
-      "code/backend/src/transport/core/poll-machine.js",
-      "code/backend/src/transport/engine.js",
+      "code/backend/reference/classroom-feed.ref.mjs",
+      "code/backend/reference/classroom-feed.ref.test.mjs",
+      "code/backend/src/session/delivery.js",
+      "code/backend/src/session/delivery.subscribe.test.mjs",
+      "code/backend/src/session/delivery.test.mjs",
+      "code/backend/src/session/envelope.js",
+      "code/backend/src/session/errors.js",
+      "code/backend/src/session/log-cursors.property.test.mjs",
+      "code/backend/src/session/memory-log-store.js",
+      "code/backend/src/session/memory-log-store.test.mjs",
       "codeagent/backend/docs/report.json",
-      "codeagent/backend/docs/worklog/2026-07-19-backend-p2-kernel-extension.md",
+      "codeagent/backend/docs/worklog/2026-07-19-backend-p3a-log-cursors.md",
       "module_docs/contract.md",
       "module_docs/handoff.md",
       "module_docs/rules.md",
-      "review/reviewcode/check-verbatim-extraction.mjs"
+      "review/reviewcode/check-kernel-purity.mjs"
     ]
   },
   "contract": { "touched": false, "which": [], "consumes": [] },
@@ -48,47 +49,63 @@
   "issues": [
     {
       "severity": "info",
-      "file": "module_docs/handoff.md",
+      "file": "codeagent/backend/docs/report.json",
       "line": null,
       "归属": "backend",
-      "summary": "backend 在 lightweight 单 agent 模式下更新了 handoff.md，但任务单 §留痕与验收未显式点名 handoff（只点名 contract.md + rules.md + 逐字门退役）。内容合理（接口变更后按铁律11 同步关联文档属正当），严格限于本仓本模块、无跨模块/跨仓越界。lightweight 模式 CFO 已知情，不作为 reject 理由，仅标出供 CFO/未来模块 arbiter 知悉。"
+      "summary": "backend report status 字段填 approved，属 worker 自评措辞偏差（应为待审）；summary 前缀已注明'[backend 自检通过的 candidate，待 reviewagent 正式审核]'，无实质误导。diff_mode=contains 但 changed_files 实为精确相等，更紧于要求。仅标出，不作 reject 理由。"
     }
   ],
   "compat_gate_check": {
     "existing_test_files_unmodified": true,
-    "existing_test_files": ["locks.mirror.test.mjs", "queue/ids.test.mjs", "transport/channels.test.mjs", "transport/core/dispatch.test.mjs", "transport/core/poll-machine.property.test.mjs", "transport/engine.integration.test.mjs"],
-    "evidence": "6 文件均不在 git diff --no-renames 7d41f8e..f909d37 的 15 项改动集合内；串行 node --test --test-concurrency=1 = 72 pass/0 fail（48 既有 + 24 新）"
+    "evidence": "git diff --no-renames c634568..6e66246 的 16 项集合内零个既有测试/内核文件（transport/concurrency/queue/package.json 及全部 P1/P2 .test.mjs 均不在内）；check-kernel-purity.mjs 为既有文件、diff 零删除行仅追加 session 段；串行 node --test --test-concurrency=1 = 110 pass / 0 fail / 0 skip（既有 72 + 新 38）"
   },
-  "mutation_self_check": [
-    {
-      "target_invariant": "③ interval 终态 CLEANUP==1 且必含 DISARM_INTERVAL",
-      "injected": "poll-machine.js teardown() 丢弃 DISARM_INTERVAL（interval 终态只 [CLEANUP]）",
-      "result": "extended.property 测试 #5（不变量③随机序列）+ #1（不变量① interval teardown 断言）FAIL，共 2 fail",
-      "reverted": "git checkout -- poll-machine.js；git status --porcelain 空"
-    },
-    {
-      "target_invariant": "① SUPERSEDE 后恰好一次 RESPOND{superseded}",
-      "injected": "poll-machine.js reduceSupersede() 停在非终态 WAITING（允许后续 settled 二次 RESPOND）",
-      "result": "extended.property 测试 #1（显式）+ #2（随机 respondCount≤1）FAIL，共 3 fail",
-      "reverted": "git checkout -- poll-machine.js；git status --porcelain 空、git diff HEAD 空、全量 72/72 复绿"
-    }
-  ],
+  "invariants_substantive_check": {
+    "shadow_model_correct": "PASS：driveInterleaving 的 shadowIds（日志权威 id 序列）+ 每 group {confirmed,cursor,high} 作可执行标准答案，每步 assert 真实 store/delivery==模型；confirmed 独立自维护（合法 ack 时按 (cursor,seq] 追加一次）、推进规则与规约一致 ⇒ 答案本身正确",
+    "random_coverage": "PASS：每步 crash/publish/casClash/pull/合法 ack/越位 ack 六类按概率分派，g1/g2 随机，crash p=0.15（property①）/p=0.5（property⑥ 加压 100×40）——append/pull/ack/casClash/crash 均真实覆盖，终检 seq 连续 + 日志==影子",
+    "mutations": [
+      { "target_invariant": "2 seq 连续无空洞 / 1 前缀 / 2 CAS", "injected": "memory-log-store.js:64 sealEnvelopes lastSeq actual→actual+1（seq 允许跳号）", "result": "property ①②③⑤⑥ FAIL（5 fail / 1 pass）", "reverted": "git checkout；git status --porcelain 空" },
+      { "target_invariant": "3 游标只前进", "injected": "memory-log-store.js:94-96 advanceCursor 删除回退检查（seq<current 不再 throw）", "result": "property ④ FAIL（1 fail / 5 pass）", "reverted": "git checkout；porcelain 空" },
+      { "target_invariant": "2 CAS 唯一胜者 / 1 前缀", "injected": "memory-log-store.js:60 append CAS 检查短路 if(false && …)（两个都成功）", "result": "property ①③⑥ FAIL（3 fail / 3 pass）", "reverted": "git checkout；porcelain 空；全量 110/110 复绿" }
+    ]
+  },
+  "crash_rebuild_check": {
+    "verdict": "PASS",
+    "detail": "crash 步 delivery=createDelivery({logStore,wakeup}) 建全新实例、旧实例整体丢弃、仅 store（logStore）幸存；新实例 lastSeqCache/pulledHigh 空 Map（knownLastSeq 懒重建全量 read、pulledHigh 从零、高水位归游标）——不携旧内存态，不变量1 非虚过；抽查'重建后未重新 pull 就 ack(cursor+1) 恒 RangeError'（harness + delivery.test 崩溃重建 + classroom-feed 断线重连用例）"
+  },
+  "reuse_check": {
+    "verdict": "PASS",
+    "no_self_polling": "grep session/+reference 生产零 setInterval/setTimeout/while/for(;;)/sleep",
+    "import_graph": "session 生产 import 仅 ./errors.js、./envelope.js（同目录兄弟）——零 transport import；subscribe 把 longPoll 当能力注入，未注入即 TypeError",
+    "real_engine_injection": "delivery.subscribe.test.mjs 与 classroom-feed.ref.test.mjs 均 import { longPoll } from '../transport/engine.js'（真实 P2 引擎）；覆盖等待/立即结算/超时/断连静默/同组双订阅/跨流不误唤醒/未 ack 重投",
+    "redline_verdict": "'能力注入'守住任务单零 transport import 红线——复用是真复用（组装真实引擎），红线一寸不破，纯度门 ⑤ 机械核"
+  },
+  "deviations_reviewed": "九条逐条成立：①longPoll 能力注入=两约束交集解；②框架字段严格拒绝；③id 本地实现同 ids.js 格式（纯度门禁跨目录 import，P5 债，测试钉格式）；④游标违规 RangeError/CAS ConflictError 语义分层，err.name 识别；⑤ack 同 seq 幂等 no-op 合理（at-least-once 自然结果）、回退 throw；⑥advanceCursor 越日志末尾 RangeError；⑦publish 追尾+CAS 兜底重试一次无静默丢失（冲突重读重 append 同批、二次失败原样上抛、内存同步一次足够）；⑧崩溃后高水位归游标；⑨信封冻结 payload 黑盒不冻结。RangeError vs 专类：属编程 bug 用内建标准错误可接受。无架构缺陷",
+  "purity_gate_check": {
+    "result": "36 PASS / 0 FAIL（transport 16 + session 20）",
+    "session_scope_non_vacuous": [
+      { "check": "⑦ 零 Date.now/Math.random", "injected": "delivery.js const m=Date.now()", "gate": "FAIL 出现 1 处 Date.now(（35/1）" },
+      { "check": "⑥ 零扩展领域词", "injected": "delivery.js const scenario=1", "gate": "FAIL 出现 copycat 领域词 scenario（35/1）" },
+      { "check": "⑤ 零 transport import", "injected": "envelope.js import ../transport/engine.js", "gate": "FAIL 禁止 import transport（35/1）" }
+    ],
+    "note": "三处均 git checkout 还原、porcelain 空、门复绿 36/36；⑧db.transaction/⑨≤500 由全体文件实测通过覆盖"
+  },
+  "ironclad_check": {
+    "file_size": "PASS：session 生产最大 delivery.js 127 行，全 diff 文件 ≤500",
+    "zero_deps": "PASS：无新增第三方 import",
+    "copycat_and_0_untouched": "PASS：diff 全部落在 dev/realtime_core 本仓",
+    "docs_four_sync": "PASS：contract/rules/handoff 任务单显式授权更新，内容与代码一致、契约内部一致、handoff 不超范围（严格限本仓本模块）"
+  },
+  "留痕_check": {
+    "backend_report_embedded_self_v2": "PASS：protocol embedded-self-v2；SELF→6e66246（git log -1 -- report.json）；base c634568 为 head 祖先（merge-base --is-ancestor 成立）；changed_files 16 与 git diff --no-renames c634568..6e66246 集合完全相等（diff 零差异）；tracked/clean（porcelain 对 report.json 空）",
+    "commit_trailer": "PASS：Agent-Attribution: backend@dev/realtime_core+p3a-log-cursors，三段小写 slug 可解析、唯一、合法",
+    "worklog": "PASS：完整（改动总览 + 四不变量→property 映射表 + 复用考验 + 10 决策 + 自检结论）"
+  },
   "scripts": [
-    { "name": "check-kernel-purity.mjs", "result": "16 PASS / 0 FAIL (scope=code/backend/src/transport 未缩小)" },
-    { "name": "node --test --test-concurrency=1 (串行全量)", "result": "72 pass / 0 fail / 0 skip" },
-    { "name": "grep poll-machine.js (import/timer/Promise)", "result": "仅命中注释行，生产代码零 import/零 timer/零 Promise" }
+    { "name": "node --test --test-concurrency=1 (串行全量)", "result": "110 pass / 0 fail / 0 skip" },
+    { "name": "check-kernel-purity.mjs", "result": "36 PASS / 0 FAIL（transport 16 + session 20）" },
+    { "name": "git diff --no-renames c634568..6e66246 (集合核验)", "result": "16 文件，既有 transport/concurrency/queue/测试零触碰；与 report changed_files 精确相等" }
   ],
   "tests_verified": true,
   "contract_conformance": true,
-  "block9_parity_verified": {
-    "next_question_poller": "10 项行为逐条核对 copycat 源一致（1000ms/同步 attempt 分类/not_found·delivered 终止/延迟首发/60s/close 静默/cleanup 拆 interval+timer/active 计数）",
-    "options_waiter": "同构 + 800ms + keyed supersede：顶替恰好一次 + 按身份 registry.delete 不误删 + 异 key 互不影响 + activeCount==registry.size",
-    "micro_timing_verdict": "无可观测差异——同步 attempt 仍在 ATTEMPT 动作同步点执行，仅 respond 分支推迟一微任务；close/timeout/下一 tick 皆宏任务排在微任务队列后；SUPERSEDE/TIMEOUT/CLIENT_CLOSE/POLL_TICK 同步喂入无推迟。首发时机/超时时序/顶替结局/close 语义与 block-9 逐位一致"
-  },
-  "deviations_reviewed": "5 处（config@initPoll / DISARM_INTERVAL 与 CLEANUP 分离 / classify 取代 isSettled / registry 注入 / reference 置 scope 外）均更保守或合理、无隐患；均核实通过",
-  "留痕_check": {
-    "backend_report_embedded_self_v2": "PASS：tracked/clean（porcelain 空）；SELF→f909d377（git log -1 -- report.json）；base 7d41f8e 为 head 祖先（merge-base --is-ancestor 成立）；changed_files 15 与 no-renames diff 集合完全相等",
-    "commit_trailer": "PASS：Agent-Attribution: backend@dev/realtime_core+p2-kernel-extension，三段小写 slug 可解析、唯一",
-    "worklog": "PASS：完整（改动总览 + block-9 逐条对照表 + 5 决策 + 微时序诚实记录 + 尺寸 + 自检结论 + lightweight 沙盒说明）"
-  }
+  "verdict": "approved"
 }

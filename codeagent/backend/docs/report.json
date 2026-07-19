@@ -2,31 +2,32 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "backend",
-  "task": "realtime_core P2：poll-machine reducer 新词汇（interval 形态 / POLL_TICK / SUPERSEDE / SUPERSEDED 终态）+ engine keyed registry + locks awaitIdle + block-9 两 poller 参考实现与特征验收 + 逐字门退役",
+  "task": "realtime_core P3a：会话内核（上）——事实日志 + 游标投递（事件信封携 v / 存储端口 + 内存实现 + CAS / delivery publish-pull-ack-subscribe 复用 P2 longPoll / 四不变量 property 测 / 纯度门扩展 session scope）",
   "tier": "normal",
   "status": "approved",
-  "summary": "[backend 自检通过的 candidate，待 reviewagent 正式审核；分支未合 main] 在 P1 逐字内核之上向后兼容扩展 interval 轮询形态 / 同 key 顶替 / 延迟首发：poll-machine 加 PollMode·SUPERSEDED·POLL_TICK·SUPERSEDE·ARM/DISARM_INTERVAL，engine 加 classify·interval·keyed registry(createPollRegistry)，locks 加 awaitIdle；reference/ 两参考实现逐条复现 copycat block-9 next-question(1000ms/延迟首发/not_found·delivered/60s/close 静默) 与 options-waiter(800ms + keyed supersede)，配 fake-timers 特征测。既有 48 测试零修改全绿，新增 24 测试全绿(合计 72/72 串行)，纯度门 16/16 PASS，P1 逐字门退役删除由兼容门(48 零改全绿)接任。分支 feat/p2-kernel-extension 不合 main。",
+  "summary": "[backend 自检通过的 candidate，待 reviewagent 正式审核；分支未合 main] 新增 src/session/ 四文件：信封 {streamId,seq,id,type,v,at,payload}（seq/at 日志层分配、v 版本字段即刻承载、payload 黑盒、信封冻结）；存储端口 + createMemoryLogStore（CAS append 整批原子 / read / getCursor / advanceCursor 只前进）；createDelivery（publish=append+wakeup.emit('appended')，pull/ack 分离 at-least-once，同 group 共享游标，subscribe 把注入的 P2 longPoll 组装成有事件即唤醒——零 transport import、零自制轮询）。四条不变量各有固定种子 property 测（含随机崩溃重建），worklog 附映射表。既有 72 测试零修改全绿，新增 38 全绿（110/110 串行），纯度门扩展 session scope 后 36/36 PASS。分支 feat/p3a-log-cursors 不合 main。",
   "git": {
     "protocol": "embedded-self-v2",
-    "branch": "feat/p2-kernel-extension",
-    "base": "7d41f8e5e39af47552a5450723497a34eca1c162",
+    "branch": "feat/p3a-log-cursors",
+    "base": "c634568359fb28b73284dc7fe01acc1e2e49625e",
     "head": "SELF",
     "diff_mode": "contains",
     "changed_files": [
-      "code/backend/src/transport/core/poll-machine.js",
-      "code/backend/src/transport/engine.js",
-      "code/backend/src/concurrency/locks.js",
-      "code/backend/src/transport/core/poll-machine.extended.property.test.mjs",
-      "code/backend/src/concurrency/locks.awaitidle.test.mjs",
-      "code/backend/reference/child-ab-next-question.ref.mjs",
-      "code/backend/reference/child-ab-next-question.ref.test.mjs",
-      "code/backend/reference/parent-options-waiter.ref.mjs",
-      "code/backend/reference/parent-options-waiter.ref.test.mjs",
-      "review/reviewcode/check-verbatim-extraction.mjs",
+      "code/backend/src/session/errors.js",
+      "code/backend/src/session/envelope.js",
+      "code/backend/src/session/memory-log-store.js",
+      "code/backend/src/session/delivery.js",
+      "code/backend/src/session/memory-log-store.test.mjs",
+      "code/backend/src/session/delivery.test.mjs",
+      "code/backend/src/session/delivery.subscribe.test.mjs",
+      "code/backend/src/session/log-cursors.property.test.mjs",
+      "code/backend/reference/classroom-feed.ref.mjs",
+      "code/backend/reference/classroom-feed.ref.test.mjs",
+      "review/reviewcode/check-kernel-purity.mjs",
       "module_docs/contract.md",
       "module_docs/rules.md",
       "module_docs/handoff.md",
-      "codeagent/backend/docs/worklog/2026-07-19-backend-p2-kernel-extension.md",
+      "codeagent/backend/docs/worklog/2026-07-19-backend-p3a-log-cursors.md",
       "codeagent/backend/docs/report.json"
     ]
   },
@@ -34,44 +35,43 @@
   "cross_module_impact": [],
   "escalation": null,
   "tests": {
-    "unit": { "passed": 72, "failed": 0, "cmd": "cd code/backend && node --test --test-concurrency=1 (串行)" },
+    "unit": { "passed": 110, "failed": 0, "cmd": "cd code/backend && node --test --test-concurrency=1 (串行)" },
     "e2e": { "passed": 0, "failed": 0, "flow": "无 e2e：库模块，无服务进程/对外端点" }
   },
   "compat_gate": {
     "existing_tests_unmodified": true,
-    "existing_pass": 48,
-    "new_pass": 24,
-    "evidence": "git diff main 对 6 个既有测试文件(poll-machine.property/engine.integration/dispatch/channels/locks.mirror/ids.test)为空；48 既有零修改 + 24 新增 = 72 全绿"
+    "existing_pass": 72,
+    "new_pass": 38,
+    "evidence": "git diff c634568..HEAD 对全部既有测试文件（transport/concurrency/queue/reference 的 P1+P2 用例）为空；72 既有零修改 + 38 新增 = 110 全绿"
   },
   "self_check": {
     "reviewcode_passed": true,
     "attempts": 1,
     "failed_gates": [],
     "passed": true,
-    "detail": "check-kernel-purity.mjs 16 PASS/0 FAIL (scope=src/transport 未缩小；poll-machine 338 行 / engine 204 行 ≤500)；check-verbatim-extraction.mjs 按任务单 §4 退役并 git rm（使命完成，抽取叠加扩展后逐字比对必失真），兼容门改由既有 48 测试零修改全绿接任"
+    "detail": "check-kernel-purity.mjs 36 PASS / 0 FAIL（transport 16 项逐项与 P2 一致 + 新 session scope 20 项：import 不出目录零 transport / 零扩展领域词 scenario·question·skill·scene·round / 零 Date.now·Math.random / 零 db.transaction / ≤500 行；最大文件 delivery.js 127 行）；门内正则经正反样本抽查无误伤"
   },
-  "block9_parity": {
-    "next_question_poller": "10 项行为逐条复现并特征测断言：1000ms/同步 attempt 分类/not_found·delivered 终止/其余继续/延迟首发(immediateFirstAttempt:false)/60s 超时/close 静默/cleanup 拆 interval+timer/active 计数——全绿",
-    "options_waiter": "同构 + 800ms + keyed supersede：同 key 新请求→旧恰好一次 respond.superseded + 旧 interval/timeout 清 + activeCount==registry.size；异 key 互不影响——全绿",
-    "micro_timing_note": "block-9 attempt 在 interval 回调内同步结算；本内核经 attempt→Promise→ATTEMPT_RESULT 事件，结算落 tick 后一个微任务。观测层行为一致(fire tick→flush→断言)，不影响任何可观测结局"
-  },
-  "new_property_invariants": [
-    "① SUPERSEDE 打进非终态：旧实例恰好一次 RESPOND 且 outcome=superseded；随机序列(wakeup+interval 各 300 种子)交叉核 RESPOND≤1",
-    "② 任意终态后不再派发 ATTEMPT/POLL_TICK：随机序列(两形态各 300 种子) attemptAfterTerminal=0；终态后 POLL_TICK/SUPERSEDE/WAKEUP 只产 DISCARD、state 不变",
-    "③ interval 形态到终态：CLEANUP 恰好一次且必伴随一次 DISARM_INTERVAL(400 种子)；wakeup 形态终态从不产 DISARM_INTERVAL(200 种子对照)"
+  "invariants_mapping": [
+    "不变量1（ack 序列=日志连续前缀）→ property①（300 种子×30 步影子模型 harness，每步 confirmed==shadowIds.slice(0,cursor)）+ property⑥ 加压",
+    "不变量2（seq 连续无空洞 + CAS 恰好一个胜者）→ property②（150 种子双流连续性）+ property③（200 种子同快照 K 路，winners==1 且日志恰好多一批）+ property① 内嵌 casClash 步",
+    "不变量3（游标只前进 + ack 不越已 pull 高水位）→ property④（200 种子端口层随机攻击）+ property⑤（200 种子越位 ack 恒 RangeError 且游标不动）+ property① 每步单调核对",
+    "不变量4（随机崩溃仅凭 logStore 重建后不变量1 仍成立）→ property①（crash p=0.15）+ property⑥（crash p=0.5，100 种子×40 步）+ delivery.test 崩溃重建确定性用例"
   ],
   "deviations": [
-    "config 放 initPoll 而非 START 事件（任务单允许其一，选最小改动面）",
-    "DISARM_INTERVAL 与 CLEANUP 分离而非合并（满足'CLEANUP 恰好一次且必含 DISARM_INTERVAL'，同时 wakeup teardown 保持 [CLEANUP] 与 P1 逐字一致）",
-    "多结局用可选 classify 取代布尔 isSettled（未传退回 isSettled，P1 调用方零改动）",
-    "keyed registry 注入而非 engine 内建全局（保持 engine 零全局、可测）",
-    "参考实现置于 code/backend/reference/（transport/ 纯度门 scope 之外）——它们是合法引用 block-9 领域词的领域适配器，非内核",
-    "lightweight 模式下单 agent 按任务单显式指令一并更新 module_docs(contract/rules/handoff)与 git rm review/ 下逐字脚本；下游仍有独立 reviewagent 审 candidate"
+    "longPoll 以能力注入（createDelivery({logStore, wakeup, longPoll})）而非 import——任务单'必须复用 P2 longPoll'与'session/ 零 transport import'两约束的交集解；subscribe 未注入即 TypeError",
+    "游标违规（回退/越日志末尾/越高水位）用内建 RangeError，仅 CAS 冲突设专类 ConflictError（编程错误 vs 可重试并发事实，语义分开）；识别用 err.name 不强依赖 instanceof",
+    "ack 同 seq 幂等 no-op（at-least-once 重投的自然结果）；回退与越位 throw；严格版可向后兼容放宽，反向不行",
+    "publish 缺省'追加到尾'（尾指针缓存 + ConflictError 兜底重读重试一次），显式 expectedLastSeq 走严格 CAS 原样上抛",
+    "信封 id 生成本地实现 evt-<clock>-<rand36>（与 queue/ids.js 同格式）而非跨目录 import——session/ 纯度门禁出目录，格式重复登记 P5 技术债",
+    "调用方事件携带框架分配字段（seq/at/streamId）或未知键 = TypeError 严格拒绝；id 允许自带（跨系统去重），缺省生成",
+    "subscribe 结算走 P1 原生 respond.settled(batch)，不新造 outcome 词汇（最小扩展面）",
+    "lightweight 模式下单 agent 按任务单显式授权一并更新 module_docs（contract/rules/handoff）与 review/ 纯度门脚本；下游仍有独立 reviewagent 审 candidate",
+    "本仓无 git remote（dev 孵化局部仓，与 P1/P2 同状态）——candidate 停在本地 commit，无 push 环节"
   ],
   "tech_debt": [
-    "符号命名带领域味(sessionLockKey/orderedSessionEvents/genEventId 等) P5 中性化候选(破 API)——沿用 P1 债",
+    "sealEnvelopes 的 id 生成与 queue/ids.js 格式重复实现（纯度门禁跨目录 import 所致，P5 统一）",
+    "符号命名带领域味（sessionLockKey/orderedSessionEvents/genEventId）P5 中性化候选（破 API）——沿用 P1 债",
     "ordering.js 无专属测试——沿用 P1 债",
-    "locks.js 形参 skillId 领域词——沿用 P1 债",
-    "参考实现的同步→事件微时序适配是事件驱动内核固有差异，SSE/其它传输适配时需同样注意(P5 SSE 参考适配器时复核)"
+    "locks.js 形参 skillId 领域词——沿用 P1 债"
   ]
 }

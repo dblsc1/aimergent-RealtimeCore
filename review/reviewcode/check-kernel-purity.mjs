@@ -24,6 +24,18 @@
 //    fixture 里的 `classCode:'X'`、以及注释里为对照老源提到的领域词。本脚本把粗糙子串门升级成"只看
 //    生产文件的 import 语句 + 剥注释后的代码"，消除这三类假阳性。
 //
+// ── P3a 扩展 scope：code/backend/src/session/ ────────────────────────────
+// 会话内核（日志+游标投递层）生产 .js 额外机械核五项（任务单 §5 红线）：
+//   ⑤ import 只许 node: 内建 + session/ 内 ./ 兄弟（零 transport import——对
+//      transport 的依赖只许以 wakeup/longPoll port 形状注入，不许 import）；
+//   ⑥ 剥注释后零 copycat 领域词（扩展词表 scenario/question/skill/scene/round，
+//      含复数与 Id 后缀、camelCase 内嵌大写形式；lowercase 词中缀不匹配，避免
+//      误伤 background/surround 这类无辜词）；
+//   ⑦ 零全局非确定性：Date.now( / Math.random( 计数 = 0（clock/rng 一律注入）；
+//   ⑧ db.transaction( 计数 = 0；
+//   ⑨ 单文件 ≤500 行。
+// session/ 不存在时该段优雅 SKIP（向后兼容 P2 及更早的分支）。
+//
 // 用法：node check-kernel-purity.mjs [transport-dir]
 //   缺省 transport-dir = <repo>/code/backend/src/transport
 //   transport/ 不存在时优雅 SKIP（exit 0）。
@@ -118,6 +130,71 @@ for (const full of prodFiles) {
   // ④ ≤500
   if (lines <= 500) pass(`${rel}: ${lines} 行 ≤500`);
   else fail(`${rel}: ${lines} 行 >500`);
+}
+
+// ── ⑤-⑨ P3a session/ 扩展 scope ─────────────────────────────────────────
+
+const sessionDir = path.join(repoRoot, 'code/backend/src/session');
+// 扩展领域词表（任务单 §5）：小写整词（含 s/id/ids 后缀）+ camelCase 内嵌大写。
+const SESSION_WORD_LOWER = /\b(scenario|question|skill|scene|round)(s|id|ids)?\b/i;
+const SESSION_WORD_CAMEL = /(Scenario|Question|Skill|Scene|Round)/;
+const GLOBAL_NONDET = /\b(?:Date\s*\.\s*now|Math\s*\.\s*random)\s*\(/g;
+
+if (!fs.existsSync(sessionDir)) {
+  console.log('\n[⑤-⑨] SKIP: session/ 不存在（P3a 之前的分支）');
+} else {
+  const sessionFiles = collect(sessionDir).sort();
+  if (sessionFiles.length === 0) fail('session/ 存在但没有任何生产 .js — 结构异常');
+
+  console.log('\n[⑤-⑨] session/ 逐文件：import 不出目录（零 transport）· 零领域词(扩展词表) · 零 Date.now/Math.random · db.transaction(=0 · ≤500 行');
+  for (const full of sessionFiles) {
+    const rel = `session/${path.relative(sessionDir, full)}`;
+    const src = fs.readFileSync(full, 'utf8');
+    const lines = src.split('\n').length;
+
+    // ⑤ import：只许 node: + 解析后仍在 session/ 内的 ./ 兄弟。
+    const specs = [];
+    let m;
+    importSpecRe.lastIndex = 0; while ((m = importSpecRe.exec(src)) !== null) specs.push(m[1]);
+    bareImportRe.lastIndex = 0; while ((m = bareImportRe.exec(src)) !== null) specs.push(m[1]);
+    let importOk = true;
+    for (const spec of specs) {
+      if (/transport/.test(spec)) { fail(`${rel}: 禁止 import transport「${spec}」（等待机制只许以 longPoll/wakeup port 形状注入）`); importOk = false; continue; }
+      if (FORBIDDEN_IMPORT.test(spec)) { fail(`${rel}: 禁止的 transport/存储/领域层 import「${spec}」`); importOk = false; continue; }
+      const isNode = spec.startsWith('node:');
+      const isSibling = spec.startsWith('./') || spec.startsWith('../');
+      if (!isNode && !isSibling) { fail(`${rel}: 非 node: 内建、非 ./ 兄弟的裸包 import「${spec}」（会话内核不应依赖第三方包）`); importOk = false; continue; }
+      if (isSibling) {
+        const resolved = path.resolve(path.dirname(full), spec);
+        if (!resolved.startsWith(sessionDir + path.sep) && resolved !== sessionDir) {
+          fail(`${rel}: import「${spec}」逃出 session/ 目录（跨层耦合）`); importOk = false;
+        }
+      }
+    }
+    if (importOk) pass(`${rel}: import 不出 session/、零 transport 耦合（${specs.length ? specs.join(',') : '零 import'}）`);
+
+    // ⑥ 扩展领域词（剥注释后的代码）。
+    const code = stripComments(src);
+    const lower = code.match(SESSION_WORD_LOWER);
+    const camel = code.match(SESSION_WORD_CAMEL);
+    if (lower) fail(`${rel}: 生产代码出现 copycat 领域词「${lower[0]}」（session/ 须领域无关）`);
+    else if (camel) fail(`${rel}: 生产代码标识符内嵌领域词「${camel[1]}」（session/ 须领域无关）`);
+    else pass(`${rel}: 剥注释后代码零领域词（扩展词表 scenario/question/skill/scene/round）`);
+
+    // ⑦ 零全局非确定性。
+    const nondet = (code.match(GLOBAL_NONDET) || []).length;
+    if (nondet === 0) pass(`${rel}: Date.now(/Math.random(=0（非确定性全走注入）`);
+    else fail(`${rel}: 出现 ${nondet} 处 Date.now(/Math.random(（必须走 clock/rng 注入）`);
+
+    // ⑧ db.transaction(
+    const txn = (src.match(/db\.transaction\(/g) || []).length;
+    if (txn === 0) pass(`${rel}: db.transaction(=0`);
+    else fail(`${rel}: db.transaction(=${txn}`);
+
+    // ⑨ ≤500
+    if (lines <= 500) pass(`${rel}: ${lines} 行 ≤500`);
+    else fail(`${rel}: ${lines} 行 >500`);
+  }
 }
 
 console.log(`\n=== kernel-purity: ${passes} PASS / ${failures} FAIL ===`);
