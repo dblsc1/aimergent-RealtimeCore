@@ -10,8 +10,8 @@
 ## 技术与目录
 
 1. **纯 ESM、零 runtime 依赖**是本库的卖点：`package.json` `"type":"module"`，`npm test` = `node --test`，不引第三方 runtime 包（devDependencies 也尽量为零）。新增代码不得破坏"内核零依赖"。
-2. 代码分区（`code/backend/src/`）：`transport/`（实时引擎壳 + long-poll reducer + 命令分发 + 频道）、`concurrency/`（keyed 锁）、`queue/`（事件排序 + id 生成）、`session/`（P3a 起：会话内核——事件日志 + 消费组游标投递，"记账本 + 书签"）。测试 `.test.mjs`/`.property.test.mjs` 旁置于被测模块同目录。
-3. **纯度门**：`review/reviewcode/check-kernel-purity.mjs` 双 scope——①`transport/` 生产 .js：无 transport/存储/领域层 import、无 copycat 领域词、无 `db.transaction(`、单文件 ≤500 行；②`session/` 生产 .js（P3a 扩展 scope，更严）：import 不出 session/ 目录（**零 transport import**，对 longPoll/wakeup 的依赖只许以 port 形状注入）、零领域词（扩展词表 scenario/question/skill/scene/round）、**零 `Date.now(`/`Math.random(`**（clock/rng 一律注入）、无 `db.transaction(`、≤500 行。`concurrency/`、`queue/` **不在纯度门覆盖内**（含领域相邻词 `rounds`/`skillId`，与 copycat 老门 scope 一致）。
+2. 代码分区（`code/backend/src/`）：`transport/`（实时引擎壳 + long-poll reducer + 命令分发 + 频道）、`concurrency/`（keyed 锁）、`queue/`（事件排序 + id 生成）、`session/`（P3a 起：会话内核——事件日志 + 消费组游标投递，"记账本 + 书签"）、`machine/`（P4 起：defineMachine 声明式转移表工具，纯逻辑）。测试 `.test.mjs`/`.property.test.mjs` 旁置于被测模块同目录。
+3. **纯度门**：`review/reviewcode/check-kernel-purity.mjs` 三 scope——①`transport/` 生产 .js：无 transport/存储/领域层 import、无 copycat 领域词、无 `db.transaction(`、单文件 ≤500 行；②`session/` 生产 .js（P3a 扩展 scope，更严）：import 不出 session/ 目录（**零 transport import**，对 longPoll/wakeup 的依赖只许以 port 形状注入）、零领域词（扩展词表 scenario/question/skill/scene/round）、**零 `Date.now(`/`Math.random(`**（clock/rng 一律注入）、无 `db.transaction(`、≤500 行；③`machine/` 生产 .js（P4 扩展 scope，与 session 同 5 项检查，内部共用 `checkStrictScope` helper）。`concurrency/`、`queue/` **不在纯度门覆盖内**（含领域相邻词 `rounds`/`skillId`，与 copycat 老门 scope 一致）。
 4. **逐字抽取纪律（v0.1 遗产 → P2 兼容门）**：`code/backend/src/` 七文件起点是 copycat 内核的逐字节抽取。P1 的 `check-verbatim-extraction.mjs` 逐字门**已于 P2 退役并删除**——它的使命（证明抽取忠实）已完成；抽取一旦叠加功能扩展，逐字比对必然失真，继续留着只会误报。接任的**兼容门 = P1 移植的既有 48 个 node:test 用例一行不改、必须全绿**（新功能只准新增测试，不准改既有测试）。P2+ 功能扩展在既有导出行为之上**只增不改**：`initPoll`/`reduce`/`longPoll`/`withLock` 等的既有调用面与行为保持逐字兼容，新增形态（interval / 顶替 / classify / registry / awaitIdle）走新参数、缺省即旧行为（要改既有行为先记 worklog + 评估消费方 + 走 CR）。
 
 ## 跨仓依赖机制
@@ -23,8 +23,8 @@
 - 安装：无（零 runtime 依赖；`code/backend/` 无需 `npm install`）。
 - 启动：不适用（库，无服务进程）。
 - lint / typecheck：暂无（v0.1 纯抽取，未引入 lint 工具链）。
-- test：`cd code/backend && npm test`（= `node --test`，串行；P3b = 153 个 node:test 用例全绿，其中 P1 既有 48 + P2 新增 24 + P3a 新增 38（合计 110 个既有零修改）+ P3b 新增 43 个）。串行跑：`node --test --test-concurrency=1`（内存紧）。
-- 审核脚本：`node review/reviewcode/check-kernel-purity.mjs`（须全 PASS；双 scope = transport 16 项 + session 40 项（P3b 起 8 文件×5）= 56 项）。逐字门 `check-verbatim-extraction.mjs` 已于 P2 退役删除（见技术与目录 §4），兼容改由"既有测试零修改全绿"接任（P3b 兼容门 = 既有 110 个零修改全绿）。
+- test：`cd code/backend && npm test`（= `node --test`，串行；P4 = 187 个 node:test 用例全绿，其中 P1 既有 48 + P2 新增 24 + P3a 新增 38 + P3b 新增 43（合计 153 个既有零修改）+ P4 新增 34 个（machine 单测 32 + property 2））。串行跑：`node --test --test-concurrency=1`（内存紧）。
+- 审核脚本：`node review/reviewcode/check-kernel-purity.mjs`（须全 PASS；三 scope = transport 16 项 + session 40 项（8 文件×5）+ machine 5 项（P4 起 1 文件×5）= 61 项）。逐字门 `check-verbatim-extraction.mjs` 已于 P2 退役删除（见技术与目录 §4），兼容改由"既有测试零修改全绿"接任（P4 兼容门 = 既有 153 个零修改全绿）。
 
 ## 演进路线图（P2→P5）
 
@@ -44,10 +44,17 @@
 #### P3b · upcaster + decide/evolve 聚合语义 ✅ 已完成（feat/p3b-decide-evolve）
 `src/session/` 新增：`aggregate.js`（`defineAggregate` 纯聚合描述：decide/evolve 全纯函数、`reject` 结构化业务拒绝、`onUnknownEvent` 未知事件默认响亮 throw）、`upcaster.js`（`upcastEvent` 事件版本化：库拥有版本号、逐级 v→v+1 升级、缺升级函数/来自未来响亮 throw，消费方永远只见最新 schema）、`memory-snapshot-store.js`（快照端口内存实现，防御性深拷贝）、`aggregate-runtime.js`（`createAggregateRuntime`：execute = 锁串行→CAS append→读回折叠→滚动快照，load = 快照+尾部重放）。**append 路径唯一**：execute 复用 P3a `delivery.publish`，全库仅一条写日志路径。四条不变量（重放确定性含快照 present/absent/behind 三形态 / 拒绝无痕 / evolve 只见升级后事件 / execute 串行等价且 CAS 零冲突——去锁反证响亮 ConflictError）固定种子 property 测钉死；`reference/classroom-aggregate.ref.mjs` **整库首次三层（聚合+投递+传输）串跑最小课堂全链路**，含 v1→v2 事件演进。既有 110 测试零修改全绿，纯度门扩展至 56 项全 PASS。真实持久化适配器（照端口契约）仍留随消费方落地。
 
-### P4 · defineMachine 转移表工具
-提供声明式状态机构造工具 `defineMachine`（转移表：states / events / guards / actions）。**词汇照抄 XState**（states/events/guards/actions/context），降低学习成本、便于未来对接生态，但实现保持零依赖、纯函数内核。
-**动机**：P2 手写 reducer 能跑但难维护；转移表把状态机结构显式化、可静态校验、可可视化，是内核从"能用"到"好用"的关键。
+### P4 · defineMachine 转移表工具 ✅ 已完成（feat/p4-define-machine）
+`src/machine/define-machine.js`：`defineMachine(spec)` 平表状态机 + 纯谓词守卫 + `MachineDefinitionError`/`IllegalTransitionError`。**词汇照抄 XState**（states/on/target/guard/initial/final/guards），但只做平表。核心价值 = **定义期全面校验**（非法定义在 `defineMachine()` 调用时响亮 throw，错误信息带 machine id 与具体位置）。方法：`transition`（非法响亮 throw）/`can`（查询不抛）/`states`·`finalStates`（冻结枚举）/`assertState`（裸字符串逃逸断言）。
+**明确不做（YAGNI，本决策记账）**：层级/并行状态、entry/exit actions 执行、invoke/actor、延迟(after)转移、字符串 target 简写——需要时再走 CR 扩展，当前 decide 组合只需"允许吗/到哪去"。guard 只做纯谓词 `(ctx, event)→boolean`，抛异常即编程错误原样上抛。JS 对象字面量静默折叠重复键 → 运行时无法检测重复键定义，改以"未知键严格拒绝"作响亮校验的等价收益。
+**与 decide 的组合边界**：machine 只回答"允许吗/到哪去"，不产事件、不折叠领域状态；decide 产事件、evolve 折叠状态。`reference/classroom-aggregate.ref.mjs` 把手写 phase if/else 改 `can(...)` 表驱动守卫、既有 4 参考测试零修改全绿（等价证明）。两不变量（状态封闭性/终态吸收性）property 测钉死。纯度门加 machine/ scope（56→61）。
+**动机（已达成）**：P2 手写 reducer 能跑但难维护；转移表把状态机结构显式化、可静态校验，是内核从"能用"到"好用"的关键；也是 copycat Step-5 收编 session.status 五值散落问题的预备工具。
 
 ### P5 · 正式契约 + semver v1.0 + 迁平台层
-定稿 `module_docs/contract.md` 正式契约、打 semver **v1.0** tag、**经 CR 迁入 `0/` 平台层**（触及 `0/AGENTS.md` 顶层结构，需用户逐字确认）、补 **SSE 参考适配器测试**（证明内核能驱动 SSE 传输，不止 long-poll）。
-**动机**：迁 `0/` 平台层意味着对外承诺冻结、多模块可依赖——必须先有稳定契约、版本号、跨传输验证，才能承担平台层的复用责任。
+定稿 `module_docs/contract.md` **正式契约**（draft 标注全部转正、启用冻结项标注）、打 semver **v1.0** tag、**经 CR 迁入 `0/` 平台层**（触及 `0/AGENTS.md` 顶层结构，需用户逐字确认）、补 **SSE 参考适配器测试**（证明内核能驱动 SSE 传输，不止 long-poll）。P5 一并清偿以下技术债：
+- **信封 id 与 `queue/ids.js` 去重**：`session/envelope.js` 的 `evt-<clock>-<rand36>` id 生成与 `queue/ids.js::genEventId` 格式重复实现（session/ 纯度门禁跨目录 import 所致）——P5 统一到一处（或提取共享纯工具，或松绑纯度门允许受控引用）。
+- **符号中性化**：`sessionLockKey`/`orderedSessionEvents`/`genEventId`/`locks.js` 形参 `skillId` 等带领域味命名，正式契约冻结前一次性中性化（破 API，故必须趁 v1.0 定版做）。
+- **`ordering.js` 无专属测试**（P1 遗留）补齐。
+- **真实持久化适配器**（`logStore`/`snapshotStore` 照端口契约）随首个消费方落地。
+- **`defineMachine` YAGNI 项**（层级/并行/actor/actions）按真实需求评估是否纳入 v1.0，或明确留在 v1.x。
+**动机**：迁 `0/` 平台层意味着对外承诺冻结、多模块可依赖——必须先有稳定契约、版本号、跨传输验证、清偿破 API 的债，才能承担平台层的复用责任。

@@ -2,44 +2,39 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "reviewagent",
-  "task": "P3b 会话内核（下）审核（feat/p3b-decide-evolve）：decide/evolve 聚合 + upcaster 事件版本化 + createMemorySnapshotStore + createAggregateRuntime execute 锁串行+CAS+滚动快照·load 快照+尾部重放 + append 路径唯一复用 delivery + 四不变量 property 测 + 三层全链路参考示例",
+  "task": "P4 defineMachine 审核（feat/p4-define-machine）：百行级零依赖声明式平表有限状态机 defineMachine（状态全集+合法转移表+纯谓词守卫+定义期全面校验响亮 throw 带 id/位置 + transition/can/assertState/states/finalStates + Object.freeze 不可变纯机器）；参考示例手写 phase 守卫改表驱动等价证明；纯度门扩展 machine scope",
   "tier": "hard",
   "status": "approved",
-  "summary": "九项全 PASS，verdict=approved。①兼容门：no-renames diff 15 文件，源/测试 11 项全 A（新增）、仅 4 docs/report 为 M——既有 110 测试+transport/concurrency/queue/package.json/purity 脚本零触碰，串行 153/153 全绿（+43）。②重放确定性核心裁断：影子 shadowStep（59-73 行）是独立手写 reducer、自维护 {total,ops,frozen}、不调 foldEvents/applyEvent/evolve，三条重建路径（快照 present+behind/无快照 absent/崩溃新实例+幸存快照）各自 deepEqual 独立影子而非彼此比较；backend 自declared 的'由构造成立'仅作用于 execute态===load态狭窄自比较，本测不依赖它；M1 变异 foldEvents 丢首事件→三路同偏影子→property① 组 4fail 铁证影子有真实判别力、非空转。③版本化 9 测：M2 缺 upcaster 改 break(静默跳过)→⑤红、M3 去 {v:from+1} 强制盖章→③④⑧红，证'缺函数必响亮'与'库拥有版本号'钉死。④append 路径唯一：grep 全库定义仅 memory-log-store:55、调用仅 delivery.js publish 三分支，runtime.execute 走 delivery.publish 不自写，reference 第二 delivery 仅读侧不 publish。⑤execute 串行：M4 强制跳 withLock→property④红出 ConflictError+单测锁串行红、property⑤(无锁反证)仍绿独立成立，证锁真串行化、⑤真跑并发非摆设。⑥拒绝无痕：M5 reject 分支泄漏 append→property①② 2fail。⑦纯度门 56/56：M6a Date.now(aggregate.js)/M6b scenarioId(upcaster.js)→各 55/1 FAIL 证新文件非空转。⑧铁律：≤500(最大 aggregate.js 156)、零依赖、copycat/0 未动，文档四件 contract/rules/handoff 任务单显式授权同步一致无越域，backend diff_mode=contains 照 report-schema §71(公共.git 固定 contains、reviewagent 自己 review_target 固定 exact)合规且实为精确相等。⑨留痕：backend report embedded-self-v2 全过(SELF→3c7bc91、base 9d8c03e 祖先、changed_files 15 精确相等、tracked/clean)、trailer 合法、worklog 全链路自证专节与 reference 4 用例一致。7 处变异全还原 porcelain 空复绿；被审业务代码一行未改。分支未合 main，交合并门。",
+  "summary": "七项全 PASS，verdict=approved。①兼容门/等价证明（核心）：no-renames diff c6b1a97..8094e50 = 10 文件，code/ 内唯一被改的既有文件是任务单 §3 授权的 reference/classroom-aggregate.ref.mjs（machine 3 文件全 A 新增），等价证明效力载体 classroom-aggregate.ref.test.mjs git diff 为空（一字未改）——'表驱动=手写'证明有效；独立重跑该 4 用例 4pass（#2 专压被降级的三处守卫，绿即证降级后拒绝逐字不变）；串行全量 187/187（既有 153 零改+新 34）。②定义期 19 类校验逐条读测与 worklog 覆盖表/代码三方吻合，经 M-A（define-machine.js:192 target-existence 改 if(false) 放行不存在 target→目标测 1fail）、M-B2（:36 this.where=undefined 抹位置字段→3 条位置断言用例 3fail）变异证非空过；亲测未知键严格拒绝拦住拼错 gaurd（定义期 throw 带位置 states.a.on.GO）。③不可变/纯度：Object.freeze machine/states/finalStates（改写抛 TypeError）、transition/can 纯（resolve 只读闭包不可变 stateSet/table/guards 无副作用、guard 抛异常按设计原样上抛）；纯度门 61/61（transport16+session40+machine5），M-D（:61 注入 Date.now→门 60/1 FAIL）证 machine scope 非空转、session 段 40 项 checkStrictScope 重构后逐字不变非放水。④property 两不变量（状态封闭性含 NOISE 噪声/终态吸收性）读定，M-C（:214 event-not-handled 改宽容自环令 final 复活→property② 1fail）证终态吸收有判别力。⑤参考改造：三处手写 phase 守卫（push-question 的 ==='closed'、submit-answer 含 v2 的 ANSWERING_PHASES.has、close 的 ==='closed'）全下沉 CLASSROOM_MACHINE.can(phase,EVENT)、删 ANSWERING_PHASES 常量、无半保留 if/else；machine 只守卫（can）不产事件不折叠态，decide 仍产事件、evolve 仍推进 phase，组合边界合 contract.md；逐格等价（PUSH_QUESTION/CLOSE 在 idle/asking/awaiting 不在 closed→can=false→原 reject 码；SUBMIT_ANSWER 仅 asking/awaiting=复刻 ANSWERING_PHASES）。⑥铁律：≤500（define-machine.js 269）、零依赖（零 import）、copycat/0 未动（diff 全在本仓）；contract/rules/handoff 与代码一致内部一致、任务单显式授权无越域；保守决策'重复键 JS 静默折叠无法检测→未知键严格拒绝'裁断成立（亲测拦拼错键）。⑦留痕：backend report embedded-self-v2 全过（SELF→8094e50=分支HEAD、base c6b1a97==main HEAD 且 head 祖先、changed_files 10 精确相等含 report+worklog、tracked/clean）、trailer Agent-Attribution: backend@dev/realtime_core+p4-define-machine 合法、worklog 含 19 类定义期校验覆盖表。2 项 info（不阻断）：backend 改 review/reviewcode/check-kernel-purity.mjs=任务单 §5 授权的越界（我核验为忠实 DRY 重构+正确新 scope、无放水，交 arbiter 知会）；contract.touched=false 而 contract.md 被改=路由正确（平台契约信号，draft 模块内部契约无消费方）。4 处变异全还原 porcelain 空、187/187+纯度门 61/61 复绿；被审业务代码一行未改。分支未合 main，交合并门。",
   "git": {
     "protocol": "embedded-self-v2",
-    "branch": "feat/p3b-decide-evolve",
-    "base": "9d8c03e15c854b0d0427b4e5333a0cefae3922ea",
+    "branch": "feat/p4-define-machine",
+    "base": "c6b1a97fc258ddf7f496e43ab8c5f0bec63a2b33",
     "head": "SELF",
     "diff_mode": "contains",
     "changed_files": [
-      "review/reviewreport/2026-07-19-review-p3b-decide-evolve.md",
+      "review/reviewreport/2026-07-19-review-p4-define-machine.md",
       "module_docs/reviewlog.md",
-      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-p3b-decide-evolve-review.md",
+      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-p4-define-machine-review.md",
       "codeagent/reviewagent/docs/report.json"
     ]
   },
   "review_target": {
-    "branch": "feat/p3b-decide-evolve",
-    "base": "9d8c03e15c854b0d0427b4e5333a0cefae3922ea",
-    "head": "3c7bc912312d5c34040d701bbfa915b47ec424ee",
+    "branch": "feat/p4-define-machine",
+    "base": "c6b1a97fc258ddf7f496e43ab8c5f0bec63a2b33",
+    "head": "8094e50ccd7f2468d597f954710897a9b3542f77",
     "diff_mode": "exact",
     "changed_files": [
       "code/backend/reference/classroom-aggregate.ref.mjs",
-      "code/backend/reference/classroom-aggregate.ref.test.mjs",
-      "code/backend/src/session/aggregate-runtime.js",
-      "code/backend/src/session/aggregate-runtime.test.mjs",
-      "code/backend/src/session/aggregate-versioning.test.mjs",
-      "code/backend/src/session/aggregate.js",
-      "code/backend/src/session/aggregate.property.test.mjs",
-      "code/backend/src/session/aggregate.test.mjs",
-      "code/backend/src/session/memory-snapshot-store.js",
-      "code/backend/src/session/upcaster.js",
+      "code/backend/src/machine/define-machine.js",
+      "code/backend/src/machine/define-machine.property.test.mjs",
+      "code/backend/src/machine/define-machine.test.mjs",
       "codeagent/backend/docs/report.json",
-      "codeagent/backend/docs/worklog/2026-07-19-backend-p3b-decide-evolve.md",
+      "codeagent/backend/docs/worklog/2026-07-19-backend-p4-define-machine.md",
       "module_docs/contract.md",
       "module_docs/handoff.md",
-      "module_docs/rules.md"
+      "module_docs/rules.md",
+      "review/reviewcode/check-kernel-purity.mjs"
     ]
   },
   "contract": { "touched": false, "which": [], "consumes": [] },
@@ -48,76 +43,66 @@
   "issues": [
     {
       "severity": "info",
-      "file": "codeagent/backend/docs/worklog/2026-07-19-backend-p3b-decide-evolve.md",
+      "file": "review/reviewcode/check-kernel-purity.mjs",
       "line": null,
       "归属": "backend",
-      "summary": "worklog 文件行数表记 aggregate.js 170 行、aggregate-runtime.js 143 行（实测 156/148），report self_check『最大文件 aggregate.js 170 行』同偏。纯计数近似陈述偏差，全部远 ≤500，不影响铁律 9 与结论；仅标出，不作 reject 理由。"
+      "summary": "backend 修改了 review/ 独占写区（0/AGENTS.md 沙盒表 backend 禁写 review/）——但由任务单 §5『纯度门扩展 scope 把 src/machine/ 纳入同 5 项检查』显式指派给 backend。独立核验：改动是忠实 DRY 重构（抽 checkStrictScope helper，session 段 40 项行为逐字不变）+ 正确新 machine scope（变异 D 注入 Date.now 令门 60/1 FAIL 证非空转），无放水、无藏匿。属任务单授权的越界、非未受控写入，照实记录交 arbiter 知会；不作 reject 理由。"
     },
     {
       "severity": "info",
       "file": "codeagent/backend/docs/report.json",
-      "line": 7,
+      "line": 28,
       "归属": "backend",
-      "summary": "backend report status 填 approved 属 worker 自评措辞偏差（应为待审）；summary 前缀已注明『[backend 自检通过的 candidate，待 reviewagent 正式审核；分支未合 main]』，无实质误导。diff_mode=contains 合规（report-schema §71 公共 .git 固定 contains），changed_files 实为精确相等更紧于要求。"
+      "summary": "contract.touched=false 而 diff 改了 module_docs/contract.md。按 0/roles/report-schema.md 升级面语义 contract.touched 是平台契约（auth/market_data/llm）路由信号；本次为 draft 模块内部契约、无消费方、无跨模块影响，touched=false 的路由判定正确（与 P1–P3b 惯例一致）。仅标出。"
     }
   ],
   "compat_gate_check": {
     "existing_test_files_unmodified": true,
-    "evidence": "git diff --no-renames 9d8c03e..3c7bc91 --name-status：15 项中 11 项源/测试全为 A（新增），仅 contract.md/rules.md/handoff.md/report.json 4 项为 M（docs/report）；transport/concurrency/queue/package.json 及全部 P1/P2/P3a .test.mjs、check-kernel-purity.mjs 均不在 diff；串行 node --test --test-concurrency=1 = 153 pass / 0 fail / 0 skip（既有 110 + 新 43）"
+    "ref_test_diff_empty": true,
+    "evidence": "git diff --no-renames c6b1a97..8094e50 --name-status：code/ 内唯一 M 是 reference/classroom-aggregate.ref.mjs（任务单 §3 授权），machine 3 文件全 A（新增），无第二个既有 code/ 文件被动；等价证明效力载体 classroom-aggregate.ref.test.mjs 的 git diff 为空（一字未改）；独立重跑 node --test reference/classroom-aggregate.ref.test.mjs = 4 pass/0 fail（#2 专压降级守卫）；串行全量 node --test --test-concurrency=1 = 187 pass/0 fail/0 skip（既有 153 零改+新 34）"
   },
-  "replay_determinism_substantive_check": {
-    "shadow_independence_verdict": "PASS — 有真实判别力、非'由构造成立'空转",
-    "detail": "aggregate.property.test.mjs 的影子 shadowStep(59-73 行) 是独立手写 reducer：自维护 {total,ops,frozen}，用自身算术(total+cmd.n / ops+1 / frozen 分支)推进，不调用 foldEvents/applyEvent/evolve/decideCommand。property① 三条重建路径 rtSnap.load(快照 present+behind,snapshotEvery=3)/新 rtNoSnap.load(absent 全量)/新 rtCrash.load(崩溃新实例+幸存快照) 各自 deepEqual 到独立影子(107/109/111 行)而非彼此比较。backend 自declared 的'由构造成立'隐患仅作用于'execute 返回态===load 态'狭窄自比较(二者共用 foldEvents)，本测不依赖该自比较——每路锚定独立影子，foldEvents 有 bug 则两侧同偏影子双双变红。",
-    "mutation_M1": "aggregate-runtime.js:66 foldEvents 丢首事件 → property① 及依赖 FAIL(4 fail/1 pass) → 三路共享折叠被破坏后同时偏离独立影子而变红，铁证影子非自证循环 → git checkout 还原，porcelain 空",
-    "snapshot_three_forms": "present/absent/behind 三形态由 snapshotEvery=3 覆盖(250 种子×24 步内快照反复当前/落后) + rtNoSnap(absent) + rtCrash(崩溃新实例仅凭 logStore+幸存快照)"
-  },
-  "versioning_substantive_check": {
-    "nine_tests_read": "①v1→升 v2 重放(补 weight=1) ②同流混合 v1/v2 ③v1→v2→v3 级联 ④evolve 只见当前版本(spy) ⑤缺 upcaster 响亮 throw ⑥事件来自未来响亮 throw ⑦upcaster 返回非对象 TypeError ⑧库强制盖 v 防死循环 ⑨快照 schema 不匹配丢弃全量重建——逐条与 upcaster.js/aggregate.js/aggregate-runtime.js 吻合",
+  "definition_time_validation_check": {
+    "coverage_read": "19 类逐条读 define-machine.test.mjs 定义期用例，与 worklog 覆盖表、define-machine.js 校验逻辑三方吻合（每条断言抛 MachineDefinitionError 且信息带 id 与位置 err.where/message）",
     "mutations": [
-      { "target": "缺 upcaster 必响亮(⑤)", "injected": "upcaster.js:43 缺 upcaster 分支改 break(静默跳过)替代 throw", "result": "版本化⑤ FAIL(1 fail/8 pass)", "reverted": "git checkout；porcelain 空" },
-      { "target": "库强制盖 v(⑧,及级联③/spy④)", "injected": "upcaster.js:54 去 Object.assign {v:from+1} 强制盖章、直接 current=upgraded(信任 upcaster 自设 v)", "result": "版本化③④⑧ FAIL(3 fail/6 pass)", "reverted": "git checkout；porcelain 空" }
-    ]
-  },
-  "append_path_unique_check": {
-    "verdict": "PASS",
-    "detail": "grep -rn '\\.append(' src reference(排除 .test.)：定义唯一 memory-log-store.js:55(端口)，调用唯一 delivery.js:61/66/70(publish 三 CAS 分支)。aggregate-runtime.js execute 不自写日志——createDelivery 后调 delivery.publish(streamId,toAppend,{expectedLastSeq}) 严格 CAS 冲突原样上抛。reference createClassroom 另持一 delivery 实例但仅读侧 pull/ack/subscribe、从不 publish——写入唯一源头 runtime.execute。无第二套 append 语义/漂移路径。"
-  },
-  "execute_serial_check": {
-    "verdict": "PASS",
-    "property4_5_read": "④(120 种子真锁)同发 k 个 add 不逐个 await，断言全成功产 1 事件+seq 连续无空洞+累计和守恒；⑤(去锁反证)无 locks 并发写 Promise.allSettled 触发响亮 ConflictError(reason.name==='ConflictError' 不静默吞)",
-    "mutation_M4": "aggregate-runtime.js:137 if(locks!==undefined) 短路成 if(false) 强制裸跑 → property④ FAIL 且报 name:'ConflictError'(证真锁正是串行化那道)；property⑤ 仍 PASS(本就无锁反证、独立成立非依赖 M4)；aggregate-runtime.test.mjs 锁串行单测同步 FAIL → git checkout 还原 porcelain 空",
-    "verdict_detail": "property⑤ 真跑真实并发(两并发 execute 共高水位 CAS 让第二个响亮失败)非摆设；property④ 零冲突是锁的实证"
-  },
-  "reject_no_trace_check": {
-    "verdict": "PASS",
-    "mutation_M5": "aggregate-runtime.js:113 reject 分支 return 前插入 delivery.publish([{type:'added',payload:{n:0}}],{expectedLastSeq}) → property① 与 property② 双 FAIL(2 fail/3 pass) 证'拒绝不动日志/不改状态'被真钉死 → git checkout 还原 porcelain 空"
-  },
-  "purity_gate_check": {
-    "result": "56 PASS / 0 FAIL(transport 16 + session 40 = 8 文件×5 项)，新四生产文件经 session scope 自动纳入(脚本未改)",
-    "session_new_file_non_vacuous": [
-      { "check": "⑦ 零 Date.now/Math.random", "injected": "aggregate.js const __mut=Date.now()", "gate": "FAIL 出现 1 处 Date.now((55/1)" },
-      { "check": "⑥ 零扩展领域词", "injected": "upcaster.js const scenarioId=...", "gate": "FAIL 出现 copycat 领域词 scenarioId(55/1)" }
+      { "target": "target 指向不存在应变红（放行不存在 target）", "injected": "define-machine.js:192 target-existence 检查改 if(false)", "result": "『定义期·target 指向不存在』1 fail/0 pass", "reverted": "git checkout；porcelain 空" },
+      { "target": "错误信息丢位置→断言位置用例应变红", "injected": "define-machine.js:36 this.where=undefined（首次仅抹 message 括号后缀未变红——位置断言压在 err.where 字段；改抹字段后变红）", "result": "initial 不在 states / target 指向不存在 / guard 引用未定义 三条位置断言用例 3 fail/0 pass", "reverted": "git checkout；porcelain 空" }
     ],
-    "note": "两处均命中 P3b 新文件、git checkout 还原 porcelain 空、门复绿 56/56；⑤零 transport import/⑧db.transaction/⑨≤500 由全体实测覆盖；最大 aggregate.js 156 行"
+    "unknown_key_strict_rejection": "亲测自构造 gaurd 拼错定义 defineMachine({id:'x',initial:'a',states:{a:{on:{GO:{target:'a',gaurd:'boom'}}}},guards:{boom:()=>true}}) → 定义期 throw MachineDefinitionError『未知键「gaurd」（只允许 target/guard）（位置：states.a.on.GO）』；未知键严格拒绝确能拦住拼错键"
+  },
+  "immutability_purity_check": {
+    "object_freeze": "PASS — return Object.freeze(machine)（:268）；states/finalStates 各 Object.freeze（:222-223）；测试断言 Object.isFrozen 且 m.id='hacked'/m.states.push('x') 均 grab TypeError（运行时改 machine.states 确失败）",
+    "transition_can_pure": "PASS — resolve(state,event,ctx) 纯函数：只读闭包内不可变 stateSet/table/guards，无外层可变态累加；transition/can 只转发 resolve，同输入恒同输出、重复调用无副作用；guard 抛异常按设计原样上抛（测试 guard 抛异常=编程错误钉死 transition 与 can 均不吞）",
+    "purity_gate": "61 PASS / 0 FAIL（transport 16 + session 40（8 文件×5）+ machine 5（1 文件×5）），session 段经 checkStrictScope helper 重构后 40 项逐字不变（非放水）",
+    "machine_scope_non_vacuous": { "injected": "define-machine.js:61 const _mut = Date.now()", "gate": "FAIL『machine/define-machine.js: 出现 1 处 Date.now(』60 PASS/1 FAIL，证 machine scope 真在检查非空转", "reverted": "git checkout；porcelain 空；门复绿 61/61" }
+  },
+  "property_invariants_check": {
+    "read": "①状态封闭性（200 种子×40 步，含机器不认识的 NOISE 噪声事件搅动 event-not-handled 路径，每步断言 transition 结果 ∈ stateSet、changed 语义、can===true⟺transition 成功）；②终态吸收性（120 种子，随机走到终态或强制 CLOSE 保证覆盖，终态后逐事件断言 can=false 且 transition 必抛 IllegalTransitionError，机器不可复活）",
+    "mutation_final_revival": { "injected": "define-machine.js:214 event-not-handled 分支改宽容自环 {ok:true,target:state,changed:false}（令终态吸收任何事件而不抛/不拒=复活）", "result": "property②『终态吸收性』1 fail/0 pass，证终态不可复活被真钉死", "reverted": "git checkout；porcelain 空" }
+  },
+  "reference_refactor_check": {
+    "verdict": "PASS",
+    "detail": "三处手写 phase 守卫（含 v2 override 共 4 个 decide 分支）全下沉 CLASSROOM_MACHINE.can(phase,EVENT)：push-question 的 state.phase==='closed'、submit-answer(v1+v2) 的 ANSWERING_PHASES.has、close 的 state.phase==='closed'；ANSWERING_PHASES 常量删除、无半保留 if/else。machine 只调 can 做守卫——不产事件、不折叠状态；decide 仍产事件、evolve 仍推进 phase，组合边界合 contract.md。逐格等价：PUSH_QUESTION/CLOSE 定义于 idle/asking/awaiting-answer 不在 closed（final 无 on）→closed 时 can=false→原 reject 码；SUBMIT_ANSWER 仅定义于 asking/awaiting-answer=精确复刻 ANSWERING_PHASES。等价机械证据=ref.test.mjs 零修改 4/4 全绿（#2 专压守卫）"
   },
   "ironclad_check": {
-    "file_size": "PASS：session 生产 aggregate.js 156 / aggregate-runtime.js 148 / memory-snapshot-store.js 64 / upcaster.js 59；reference 119。全 ≤500",
-    "zero_deps": "PASS：package.json 无 dependencies；新文件 import 图仅同目录 ./ 兄弟(aggregate→upcaster、aggregate-runtime→delivery)，零第三方",
-    "copycat_and_0_untouched": "PASS：diff 全部落在 dev/realtime_core 本仓",
-    "docs_four_sync": "PASS：contract(P3b 导出面+聚合/版本化/运行时语义+变更记录)/rules(路线图 P3b✅、纯度门 56、test 153)/handoff(P3b 聚合层接口+避坑) 与代码一致、契约内部一致、任务单显式授权、无越域",
-    "backend_diff_mode_compliance": "backend .git.diff_mode=contains 照 0/roles/report-schema.md §71（公共 .git 块 diff_mode 固定 contains；reviewagent 自己 review_target 才固定 exact）——合规；其 15 项 changed_files 与 no-renames diff 实为精确相等，更紧于要求"
+    "file_size": "PASS：define-machine.js 269 行（gate 计 270 含尾换行）；测试 286/100；全 ≤500",
+    "zero_deps": "PASS：define-machine.js 零 import（纯度门 import 不出 machine/、零 transport 耦合（零 import）PASS）；package.json 无 dependencies",
+    "copycat_and_0_untouched": "PASS：git diff --name-only c6b1a97..8094e50 | grep -v '^(code|codeagent|module_docs|review)/' 无输出，diff 全部落在 dev/realtime_core 本仓",
+    "docs_sync": "PASS：contract.md 新增『P4 扩展导出面（draft）』（API/错误类/定义期校验/组合边界/验收锚点）与代码逐一吻合内部一致；rules.md 勾 P4✅ 并细化 P5（正式契约/semver/CR 迁平台/SSE 适配器测试/信封 id 去重债）；handoff.md 同步 machine/ 接口+测试数 187+纯度门 61。任务单显式授权此三件，无越域",
+    "conservative_decision": "PASS：JS 对象字面量静默折叠重复键（{a:1,a:2}→{a:2}）运行时确拿不到重复信息——『重复键无法检测→未知键严格拒绝』保守替代成立，亲测能拦拼错 gaurd/onn/context，三处（contract/rules/worklog）如实登记限制"
   },
   "留痕_check": {
-    "backend_report_embedded_self_v2": "PASS：protocol embedded-self-v2；SELF→3c7bc91(git log -1 --format=%H -- codeagent/backend/docs/report.json)；base 9d8c03e 为 head 祖先(merge-base --is-ancestor 成立)且为 P3a squash 后 main 起点非 feature-only 中间提交；changed_files 15 按 contains 核对每项均在 no-renames diff、实为集合完全相等，含本 report 与 worklog；tracked/clean(porcelain 对 report.json 空)",
-    "commit_trailer": "PASS：Agent-Attribution: backend@dev/realtime_core+p3b-decide-evolve，三段小写 slug(role=backend/module=dev/realtime_core（/ 分层合法)/task=p3b-decide-evolve)可解析、唯一、合法",
-    "worklog_full_chain_section": "PASS：worklog 存在『## 全链路自证（整库首次三层串跑）』专节，与 reference/classroom-aggregate.ref.{mjs,test.mjs}(4 用例全绿实测)一致——命令→decide→事件→delivery.publish append→wakeup.emit→三组真实 engine.js longPoll 唤醒 respond.settled→三组独立游标，含拒绝无痕/断线重连仅凭 logStore+snapshot/v1→v2 演进"
+    "backend_report_embedded_self_v2": "PASS：protocol embedded-self-v2；SELF→8094e50（git log -1 --format=%H -- codeagent/backend/docs/report.json）=分支 HEAD；base c6b1a97==当前 main HEAD 为 head 祖先（merge-base --is-ancestor 成立）且是 P3b squash 后 main 起点非 feature-only 中间提交；diff_mode=contains，changed_files 10 按 contains 核对每项均在 no-renames diff、实为集合完全相等、含本 report 与 worklog；tracked/clean（porcelain 对 report.json 空）",
+    "commit_trailer": "PASS：Agent-Attribution: backend@dev/realtime_core+p4-define-machine，三段小写 slug（role=backend/module=dev/realtime_core（/ 分层合法）/task=p4-define-machine）可解析、唯一、合法",
+    "worklog": "PASS：2026-07-19-backend-p4-define-machine.md 含任务/改动+为什么/定义期校验 19 类覆盖表/5 条保守决策/YAGNI 项/验收结果/偏离项，与代码测试一致"
   },
   "scripts": [
-    { "name": "node --test --test-concurrency=1 (串行全量)", "result": "153 pass / 0 fail / 0 skip" },
-    { "name": "check-kernel-purity.mjs", "result": "56 PASS / 0 FAIL(transport 16 + session 40)" },
-    { "name": "grep -rn '\\.append(' src reference (排除 test)", "result": "定义 memory-log-store.js:55；调用仅 delivery.js:61/66/70" },
-    { "name": "git diff --no-renames 9d8c03e..3c7bc91 --name-status", "result": "15 文件；源/测试 11 项 A(新增)、仅 4 docs/report 为 M；与 report changed_files 精确相等" },
-    { "name": "变异自检 ×7 (M1-M6b)", "result": "全部注入→精确变红→git checkout 还原→porcelain 空→153/153 + 纯度门 56/56 复绿" }
+    { "name": "node --test --test-concurrency=1 (串行全量)", "result": "187 pass / 0 fail / 0 skip" },
+    { "name": "node --test reference/classroom-aggregate.ref.test.mjs (等价 4 用例)", "result": "4 pass / 0 fail" },
+    { "name": "check-kernel-purity.mjs", "result": "61 PASS / 0 FAIL（transport 16 + session 40 + machine 5）" },
+    { "name": "git diff --no-renames c6b1a97..8094e50 -- '**/classroom-aggregate.ref.test.mjs'", "result": "空（未改）" },
+    { "name": "git diff --no-renames c6b1a97..8094e50 --name-status -- code/", "result": "仅 M reference/classroom-aggregate.ref.mjs；machine 3 文件全 A" },
+    { "name": "git rev-parse main / merge-base --is-ancestor c6b1a97 8094e50", "result": "main==c6b1a97==base；base 为 head 祖先 YES" },
+    { "name": "变异自检 ×4 (A/B2/C/D)", "result": "全部注入→精确变红→git checkout 还原→porcelain 空→187/187 + 纯度门 61/61 复绿" }
   ],
   "tests_verified": true,
   "contract_conformance": true,

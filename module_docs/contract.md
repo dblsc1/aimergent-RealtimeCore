@@ -123,6 +123,45 @@ rt.load(streamId) -> state          // 快照 + 尾部重放
 
 > **验收锚点**：`reference/classroom-aggregate.ref.mjs` + 特征测试——最小课堂聚合（states idle/asking/awaiting-answer/closed；命令 push-question/submit-answer/close；含一次 v1→v2 事件演进），**整库第一次三层（聚合+投递+传输）串起来跑通全链路**（命令→事件→三组订阅各自唤醒收到）。领域词只出现在 reference/。四条不变量（重放确定性含快照 present/absent/behind 三形态 / 拒绝无痕 / evolve 只见升级后事件 / execute 串行等价且 CAS 零冲突）由 `session/aggregate.property.test.mjs` 固定种子 property 测钉死。
 
+### P4 扩展导出面（draft）：defineMachine 声明式转移表工具
+
+`code/backend/src/machine/define-machine.js`（新目录 `machine/`，draft）——百行级、零依赖的**平表**有限状态机：状态全集 + 合法转移表 + 纯谓词守卫。词汇照抄 XState（states/on/target/guard/initial/final/guards），但只做平表，**明确不做层级/并行/actor/entry-exit-actions/延迟转移**（YAGNI，见 rules.md P4）。核心价值 = **定义期全面校验**：非法定义在 `defineMachine()` 调用时就响亮 throw。
+
+| 文件 | 导出符号 | 性质 |
+|---|---|---|
+| `machine/define-machine.js` | `defineMachine(spec)`、`MachineDefinitionError`、`IllegalTransitionError` | 纯、不可变、零依赖状态机工厂；机器全部方法为纯函数 |
+
+**API**：
+
+```
+const machine = defineMachine({
+  id: 'session-status',          // 诊断用；所有错误信息都带它
+  initial: 'idle',
+  states: {
+    idle:     { on: { START:  { target: 'asking' } } },
+    asking:   { on: { ANSWER: { target: 'awaiting', guard: 'hasQuestion' },
+                      CLOSE:  { target: 'closed' } } },
+    awaiting: { on: { EXTRACTED: { target: 'asking' }, CLOSE: { target: 'closed' } } },
+    closed:   { type: 'final' },
+  },
+  guards: { hasQuestion: (ctx, event) => Boolean },   // 纯谓词
+})
+```
+
+- `machine.transition(state, event, ctx?) → { state, changed } | throw IllegalTransitionError`——非法转移（状态不存在 / 该状态无此事件 / 守卫拒绝 / 已在终态）默认响亮 throw；`changed` = 目标状态 ≠ 原状态。
+- `machine.can(state, event, ctx?) → boolean`——查询不抛错（未知状态/未知事件/守卫拒绝一律 false）；`can(...)===true ⟺ transition(...)` 成功。
+- `machine.states` / `machine.finalStates`——枚举导出（`Object.freeze`）；`machine.initial`。
+- `machine.assertState(value) → value | throw`——值不在状态全集 = 响亮 throw（给"裸字符串逃逸"运行时断言用），合法则原样返回以便链式。
+- 机器对象本身 `Object.freeze`，无内部可变状态。
+- **guard 契约**：`(ctx, event) → boolean` 纯谓词；库只看真假值，不解释其它；guard 抛异常 = 编程错误，**原样上抛（库不吞）**——`can` 也不吞。
+- **错误类型**：定义期非法 → `MachineDefinitionError`（携 `machineId`/`where` 出错位置，如 `states.asking.on.ANSWER.target`）；运行期非法转移 → `IllegalTransitionError`（携 `machineId`/`reason ∈ {unknown-state,event-not-handled,guard-rejected}`/`from`/`event`/`guard`）。
+
+**定义期全面校验**（每条非法 = `defineMachine()` 时响亮 throw，信息带 id 与位置）：`id`/`initial`/状态名/事件名非空字符串；`initial` 不在 states；`target` 指向不存在的状态；final 状态却声明 `on`（终态无出边，防复活）；`type` 非 `'final'`；`guard` 引用未在 guards 表中定义；状态/转移出现未知键（如拼错的 `gaurd`）；`guards` 非对象或 guard 非函数。JS 对象字面量会静默折叠重复键，**运行时无法检测重复键**——改以"未知键严格拒绝"作为响亮校验的等价收益（见 worklog P4 决策）。
+
+**与 decide 的组合边界**（本工具定位）：aggregate 的 `decide` 内用 `machine.can(state.phase, EVENT)` 做守卫、或 `machine.transition(...)` 求下一状态——**machine 只回答"允许吗 / 到哪去"，不产出事件、不折叠领域状态**；`decide` 保持产出事件的职责，`evolve` 保持折叠状态的职责。machine 是 decide 内部合法转移判定的**可选辅助**，不是聚合的替代。
+
+> **验收锚点**：`reference/classroom-aggregate.ref.mjs` 把 P3b 示例里手写的 phase if/else（`state.phase === 'closed'` / `ANSWERING_PHASES.has(...)`）改为 `CLASSROOM_MACHINE.can(...)` 表驱动守卫，行为逐字不变——既有 4 个参考测试**零修改全绿**即为"表驱动与手写等价"的机械证明。两条不变量（任意事件序列下 transition 结果恒 ∈ states 全集 / final 后任何事件恒 throw 且 can=false，机器不可复活）由 `machine/define-machine.property.test.mjs` 固定种子 property 测钉死。
+
 ## 入口与路由
 
 - 无 HTTP/nginx 表面：realtime_core 是**库**（ESM 模块集），由消费方 `import`，不自带服务进程或路由。
@@ -158,3 +197,4 @@ rt.load(streamId) -> state          // 快照 + 尾部重放
 | 2026-07-19 | 无（dev 孵化，无 CR） | P2 内核扩展（向后兼容）：新增 `PollMode`、`PollPhase.SUPERSEDED`、`POLL_TICK`/`SUPERSEDE` 事件、`ARM_INTERVAL`/`DISARM_INTERVAL` 动作；`initPoll(config)` 携带 mode/immediateFirstAttempt；`longPoll` 加 classify/registry/key/interval 注入；新增 `createPollRegistry()`、`awaitIdle()`。既有导出行为逐字不变（48 既有测试零修改全绿）。参考实现 + 特征测验收 block-9 两 poller。仍 draft，P5 定稿 |
 | 2026-07-19 | 无（dev 孵化，无 CR） | P3a 会话内核（上）：新增 `session/`——事件信封（`{streamId,seq,id,type,v,at,payload}`，`v` 版本字段即刻承载）、存储端口 + `createMemoryLogStore`、`ConflictError`（CAS）、`createDelivery`（publish/pull/ack/subscribe，subscribe 复用 P2 longPoll/wakeup 注入）。既有导出零改动（72 既有测试零修改全绿）。四不变量 property 测钉死。仍 draft，upcaster/decide-evolve 留 P3b，P5 定稿 |
 | 2026-07-19 | 无（dev 孵化，无 CR） | P3b 会话内核（下）：新增 `session/aggregate.js`（`defineAggregate`/`reject`/`isReject`）、`session/upcaster.js`（`upcastEvent` 事件版本化，缺升级函数/来自未来响亮 throw）、`session/memory-snapshot-store.js`（`createMemorySnapshotStore`）、`session/aggregate-runtime.js`（`createAggregateRuntime`：execute 锁串行+CAS+滚动快照 / load 快照+尾部重放）。**append 路径唯一**：execute 复用 P3a delivery.publish。既有导出零改动（110 既有测试零修改全绿）。四不变量（重放确定性/拒绝无痕/evolve 只见升级后事件/execute 串行）property 测钉死；`reference/classroom-aggregate.ref.mjs` 三层全链路自证。仍 draft，P4 defineMachine、P5 定稿 |
+| 2026-07-19 | 无（dev 孵化，无 CR） | P4 defineMachine 声明式转移表：新增 `machine/define-machine.js`（`defineMachine`/`MachineDefinitionError`/`IllegalTransitionError`）——平表状态机 + 纯谓词守卫，词汇照抄 XState，定义期全面校验（非法定义响亮 throw 带 id/位置）。既有导出零改动（153 既有测试零修改全绿）；`reference/classroom-aggregate.ref.mjs` 手写 phase if/else 改表驱动守卫、既有 4 参考测试零修改全绿（等价证明）。两不变量（状态封闭性/终态吸收性）property 测钉死。纯度门扩展 machine/ scope（同 session 5 项），56→61 项全 PASS。仍 draft，P5 定稿 |

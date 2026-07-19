@@ -19,10 +19,40 @@
 import { defineAggregate, reject } from '../src/session/aggregate.js';
 import { createAggregateRuntime } from '../src/session/aggregate-runtime.js';
 import { createDelivery } from '../src/session/delivery.js';
+import { defineMachine } from '../src/machine/define-machine.js';
 
 export const CLASSROOM_GROUPS = Object.freeze(['teacher', 'student', 'parent']);
 
-const ANSWERING_PHASES = new Set(['asking', 'awaiting-answer']);
+// P4 · 表驱动改造：把 decide 里手写的 phase if/else（`state.phase === 'closed'` /
+// `ANSWERING_PHASES.has(state.phase)`）升格为声明式转移表。machine 只回答"这命令
+// 此刻允许吗"（machine.can）——**不产事件、不折叠状态**：decide 仍负责产事件、
+// evolve 仍负责推进 phase（见 contract.md 组合边界）。改造前后行为逐字不变，既有
+// 4 个参考测试零修改全绿即为"表驱动与手写等价"的证明。
+//
+// 词汇照抄 XState：states/on/target/final。命令 → 事件名映射见 CLASSROOM_MACHINE 表。
+const CLASSROOM_MACHINE = defineMachine({
+  id: 'classroom-phase',
+  initial: 'idle',
+  states: {
+    // 非 closed 各态：可推题（→asking）、可关闭（→closed）；asking/awaiting 可作答。
+    idle: { on: { PUSH_QUESTION: { target: 'asking' }, CLOSE: { target: 'closed' } } },
+    asking: {
+      on: {
+        PUSH_QUESTION: { target: 'asking' },
+        SUBMIT_ANSWER: { target: 'awaiting-answer' },
+        CLOSE: { target: 'closed' },
+      },
+    },
+    'awaiting-answer': {
+      on: {
+        PUSH_QUESTION: { target: 'asking' },
+        SUBMIT_ANSWER: { target: 'awaiting-answer' },
+        CLOSE: { target: 'closed' },
+      },
+    },
+    closed: { type: 'final' },
+  },
+});
 
 // 共享的 decide/evolve（版本无关部分）；answerVersion 决定 answer-submitted 的当前
 // 版本与 evolve 读法，用来演示 v1→v2 演进。
@@ -31,18 +61,22 @@ function classroomSpec (answerVersion) {
     name: 'classroom',
     initial: () => ({ phase: 'idle', currentQuestion: null, answers: [] }),
     decide: {
+      // 守卫全部下沉到 CLASSROOM_MACHINE.can(phase, EVENT)——非法转移 = 该 phase 无此
+      // 事件（或指向终态）→ can=false → 保留原来的领域拒绝码，行为逐字不变。
       'push-question': (state, cmd) => (
-        state.phase === 'closed'
-          ? reject('classroom-closed')
-          : [{ type: 'question-pushed', payload: { qid: cmd.qid, text: cmd.text } }]
+        CLASSROOM_MACHINE.can(state.phase, 'PUSH_QUESTION')
+          ? [{ type: 'question-pushed', payload: { qid: cmd.qid, text: cmd.text } }]
+          : reject('classroom-closed')
       ),
       'submit-answer': (state, cmd) => (
-        ANSWERING_PHASES.has(state.phase)
+        CLASSROOM_MACHINE.can(state.phase, 'SUBMIT_ANSWER')
           ? [{ type: 'answer-submitted', payload: { qid: cmd.qid, student: cmd.student, choice: cmd.choice } }]
           : reject('no-open-question')
       ),
       close: (state) => (
-        state.phase === 'closed' ? reject('already-closed') : [{ type: 'classroom-closed', payload: {} }]
+        CLASSROOM_MACHINE.can(state.phase, 'CLOSE')
+          ? [{ type: 'classroom-closed', payload: {} }]
+          : reject('already-closed')
       ),
     },
     evolve: {
@@ -81,7 +115,7 @@ export function classroomAggregateV2 () {
   spec.decide = {
     ...spec.decide,
     'submit-answer': (state, cmd) => (
-      ANSWERING_PHASES.has(state.phase)
+      CLASSROOM_MACHINE.can(state.phase, 'SUBMIT_ANSWER')
         ? [{ type: 'answer-submitted', payload: { qid: cmd.qid, student: cmd.student, choice: cmd.choice, via: cmd.via ?? 'app' } }]
         : reject('no-open-question')
     ),

@@ -36,6 +36,13 @@
 //   ⑨ 单文件 ≤500 行。
 // session/ 不存在时该段优雅 SKIP（向后兼容 P2 及更早的分支）。
 //
+// ── P4 扩展 scope：code/backend/src/machine/ ─────────────────────────────
+// 声明式状态机工具（defineMachine）是又一个纯逻辑子目录，与 session/ 要求完全
+// 相同——⑤-⑨ 的 5 项检查（import 不出目录/零 transport、零扩展领域词、零
+// Date.now/Math.random、无 db.transaction、≤500 行）对 machine/ 逐字复用（内部
+// 抽成 checkStrictScope helper，session/ 与 machine/ 共用）。machine/ 不存在时
+// 该段优雅 SKIP。states/events 是通用词，天然领域无关。
+//
 // 用法：node check-kernel-purity.mjs [transport-dir]
 //   缺省 transport-dir = <repo>/code/backend/src/transport
 //   transport/ 不存在时优雅 SKIP（exit 0）。
@@ -132,27 +139,34 @@ for (const full of prodFiles) {
   else fail(`${rel}: ${lines} 行 >500`);
 }
 
-// ── ⑤-⑨ P3a session/ 扩展 scope ─────────────────────────────────────────
-
-const sessionDir = path.join(repoRoot, 'code/backend/src/session');
-// 扩展领域词表（任务单 §5）：小写整词（含 s/id/ids 后缀）+ camelCase 内嵌大写。
+// ── ⑤-⑨ / ⑩-⑭ 严格 scope（session/ 与 machine/ 共用同一 5 项检查）──────────
+// 两个纯逻辑子目录（P3a session/、P4 machine/）要求相同：import 不出本目录（零
+// transport import——对 longPoll/wakeup 的依赖只许以 port 形状注入）、零扩展领域词、
+// 零 Date.now/Math.random、无 db.transaction、≤500 行。抽成一个 helper 以 DRY。
 const SESSION_WORD_LOWER = /\b(scenario|question|skill|scene|round)(s|id|ids)?\b/i;
 const SESSION_WORD_CAMEL = /(Scenario|Question|Skill|Scene|Round)/;
 const GLOBAL_NONDET = /\b(?:Date\s*\.\s*now|Math\s*\.\s*random)\s*\(/g;
 
-if (!fs.existsSync(sessionDir)) {
-  console.log('\n[⑤-⑨] SKIP: session/ 不存在（P3a 之前的分支）');
-} else {
-  const sessionFiles = collect(sessionDir).sort();
-  if (sessionFiles.length === 0) fail('session/ 存在但没有任何生产 .js — 结构异常');
+/**
+ * 对一个纯逻辑子目录跑 5 项严格纯度检查。
+ * @param {string} dir 目录绝对路径 @param {string} label 报告用短名（session/machine）
+ * @param {string} banner 段落标题
+ */
+function checkStrictScope (dir, label, banner) {
+  if (!fs.existsSync(dir)) {
+    console.log(`\n${banner.replace(/：.*/, '')} SKIP: ${label}/ 不存在（该扩展之前的分支）`);
+    return;
+  }
+  const files = collect(dir).sort();
+  if (files.length === 0) fail(`${label}/ 存在但没有任何生产 .js — 结构异常`);
 
-  console.log('\n[⑤-⑨] session/ 逐文件：import 不出目录（零 transport）· 零领域词(扩展词表) · 零 Date.now/Math.random · db.transaction(=0 · ≤500 行');
-  for (const full of sessionFiles) {
-    const rel = `session/${path.relative(sessionDir, full)}`;
+  console.log(`\n${banner}`);
+  for (const full of files) {
+    const rel = `${label}/${path.relative(dir, full)}`;
     const src = fs.readFileSync(full, 'utf8');
     const lines = src.split('\n').length;
 
-    // ⑤ import：只许 node: + 解析后仍在 session/ 内的 ./ 兄弟。
+    // import：只许 node: + 解析后仍在本目录内的 ./ 兄弟；零 transport。
     const specs = [];
     let m;
     importSpecRe.lastIndex = 0; while ((m = importSpecRe.exec(src)) !== null) specs.push(m[1]);
@@ -163,39 +177,53 @@ if (!fs.existsSync(sessionDir)) {
       if (FORBIDDEN_IMPORT.test(spec)) { fail(`${rel}: 禁止的 transport/存储/领域层 import「${spec}」`); importOk = false; continue; }
       const isNode = spec.startsWith('node:');
       const isSibling = spec.startsWith('./') || spec.startsWith('../');
-      if (!isNode && !isSibling) { fail(`${rel}: 非 node: 内建、非 ./ 兄弟的裸包 import「${spec}」（会话内核不应依赖第三方包）`); importOk = false; continue; }
+      if (!isNode && !isSibling) { fail(`${rel}: 非 node: 内建、非 ./ 兄弟的裸包 import「${spec}」（纯逻辑内核不应依赖第三方包）`); importOk = false; continue; }
       if (isSibling) {
         const resolved = path.resolve(path.dirname(full), spec);
-        if (!resolved.startsWith(sessionDir + path.sep) && resolved !== sessionDir) {
-          fail(`${rel}: import「${spec}」逃出 session/ 目录（跨层耦合）`); importOk = false;
+        if (!resolved.startsWith(dir + path.sep) && resolved !== dir) {
+          fail(`${rel}: import「${spec}」逃出 ${label}/ 目录（跨层耦合）`); importOk = false;
         }
       }
     }
-    if (importOk) pass(`${rel}: import 不出 session/、零 transport 耦合（${specs.length ? specs.join(',') : '零 import'}）`);
+    if (importOk) pass(`${rel}: import 不出 ${label}/、零 transport 耦合（${specs.length ? specs.join(',') : '零 import'}）`);
 
-    // ⑥ 扩展领域词（剥注释后的代码）。
+    // 扩展领域词（剥注释后的代码）。
     const code = stripComments(src);
     const lower = code.match(SESSION_WORD_LOWER);
     const camel = code.match(SESSION_WORD_CAMEL);
-    if (lower) fail(`${rel}: 生产代码出现 copycat 领域词「${lower[0]}」（session/ 须领域无关）`);
-    else if (camel) fail(`${rel}: 生产代码标识符内嵌领域词「${camel[1]}」（session/ 须领域无关）`);
+    if (lower) fail(`${rel}: 生产代码出现 copycat 领域词「${lower[0]}」（${label}/ 须领域无关）`);
+    else if (camel) fail(`${rel}: 生产代码标识符内嵌领域词「${camel[1]}」（${label}/ 须领域无关）`);
     else pass(`${rel}: 剥注释后代码零领域词（扩展词表 scenario/question/skill/scene/round）`);
 
-    // ⑦ 零全局非确定性。
+    // 零全局非确定性。
     const nondet = (code.match(GLOBAL_NONDET) || []).length;
     if (nondet === 0) pass(`${rel}: Date.now(/Math.random(=0（非确定性全走注入）`);
     else fail(`${rel}: 出现 ${nondet} 处 Date.now(/Math.random(（必须走 clock/rng 注入）`);
 
-    // ⑧ db.transaction(
+    // db.transaction(
     const txn = (src.match(/db\.transaction\(/g) || []).length;
     if (txn === 0) pass(`${rel}: db.transaction(=0`);
     else fail(`${rel}: db.transaction(=${txn}`);
 
-    // ⑨ ≤500
+    // ≤500
     if (lines <= 500) pass(`${rel}: ${lines} 行 ≤500`);
     else fail(`${rel}: ${lines} 行 >500`);
   }
 }
+
+// ⑤-⑨ P3a session/ 扩展 scope。
+checkStrictScope(
+  path.join(repoRoot, 'code/backend/src/session'),
+  'session',
+  '[⑤-⑨] session/ 逐文件：import 不出目录（零 transport）· 零领域词(扩展词表) · 零 Date.now/Math.random · db.transaction(=0 · ≤500 行',
+);
+
+// ⑩-⑭ P4 machine/ 扩展 scope（声明式状态机工具；同 session 的 5 项严格检查）。
+checkStrictScope(
+  path.join(repoRoot, 'code/backend/src/machine'),
+  'machine',
+  '[⑩-⑭] machine/ 逐文件：import 不出目录（零 transport）· 零领域词(扩展词表) · 零 Date.now/Math.random · db.transaction(=0 · ≤500 行',
+);
 
 console.log(`\n=== kernel-purity: ${passes} PASS / ${failures} FAIL ===`);
 process.exit(failures === 0 ? 0 : 1);
