@@ -1,44 +1,80 @@
-// block-4 可复用实时引擎 · engine.js（Wave 1a）
+// block-4 可复用实时引擎 · engine.js（Wave 1a · P2 扩展）
 //
 // 副作用壳：把 `core/poll-machine.js` 的纯 reducer 动作解释成真实副作用
-// （订阅唤醒 / 排定超时 / 发起 attempt / 调 responder / 幂等清理），把
-// `core/dispatch.js` 的纯表查找解释成"调用 handler + 吞异常"。100% 领域
+// （订阅唤醒 / 排定超时 / 装拆周期轮询 / 发起 attempt / 调 responder / 幂等清理），
+// 把 `core/dispatch.js` 的纯表查找解释成"调用 handler + 吞异常"。100% 领域
 // 无关——只 import node: 内建 + realtime/core 兄弟模块，不 import
 // session-state/fastify/ws/operations（设计文档 §1，reviewer 机械核
-// `check-realtime-engine-purity.mjs`）。
+// `check-kernel-purity.mjs`）。
 //
 // 注入物（全部由调用方传入，engine.js 本身零全局状态）：
 //   - `wakeup`：block-3 `session-state/wakeup.js` 的 `createWakeupPort()` 实例
 //     形状 `{ emit(pollKey, kinds), subscribe(kinds, listener) → unsubscribe }`。
-//   - `timers`：`{ set(fn, ms) → handle, clear(handle) }`，测试注入假 timer。
+//     interval 形态不消费 wakeup（可不传）。
+//   - `timers`：`{ set(fn, ms) → handle, clear(handle) }`；interval 形态另需
+//     `{ setInterval(fn, ms) → handle, clearInterval(handle) }`。测试注入假 timer。
 //   - `attempt`：`(phase) => Promise<result>` 闭包，调用方通常在其内部做
 //     `service.mutate(sessionId, op)`——engine 不感知锁/repo/领域。
+//
+// ── P2 扩展（本期）─────────────────────────────────────────────────────────
+//   - interval 形态：解释 ARM_INTERVAL/DISARM_INTERVAL（经 timers.setInterval/
+//     clearInterval），每次 interval 触发喂一个 POLL_TICK 事件。
+//   - 结局分类：可选 `classify(result) → {terminal, outcome?, payload?}` 取代
+//     布尔 `isSettled`，让一次 attempt 结果映射到 block-9 的多结局（delivered /
+//     not_found / continue）；未传 classify 时退回 `isSettled`（P1 逐字行为）。
+//   - RESPOND 泛化：settled/timeout/error 三个 outcome 保持 P1 语义；其余 outcome
+//     （superseded/delivered/not_found/…）派发到同名 `respond[outcome](payload)`。
+//   - keyed registry：可选注入 `registry`（Map<key, superseder>）+ `key`。同 key
+//     新 longPoll 进场时先向旧实例喂 SUPERSEDE，再登记自己；CLEANUP 时按身份
+//     严格摘除（不误删后来者）。不传 key/registry 时完全绕过——行为与 P1 一致。
 
 import { reduce, initPoll, isTerminalPhase, PollEventType, PollActionType } from './core/poll-machine.js';
 import { normalizeCommandTable, lookupCommand } from './core/dispatch.js';
 
 /**
- * 驱动一次 long-poll 生命周期，直到进入终态（resolved/timed_out/closed）并
- * 完成清理后才 resolve——调用方（L1 手排 / L2 `classroom.js`）await 它即可，
- * 不需要自己管定时器/监听器的生命周期。
+ * 一个可跨多次 longPoll 调用共享的 keyed poller 注册表（同 key 顶替用）。就是一个
+ * 普通 `Map<key, superseder>`——独立工厂只是给调用方一个语义明确的入口，engine
+ * 本身不持有任何全局状态。
+ * @returns {Map<any, () => void>}
+ */
+export function createPollRegistry () {
+  return new Map();
+}
+
+/**
+ * 驱动一次 long-poll 生命周期，直到进入终态（resolved/timed_out/closed/
+ * superseded）并完成清理后才 resolve——调用方 await 它即可，不需要自己管
+ * 定时器/监听器/interval 的生命周期。
  * @param {{
- *   wakeup: {subscribe: (kinds: string|string[], listener: (pollKey: any) => void) => (() => void)},
- *   timers: {set: (fn: () => void, ms: number) => any, clear: (handle: any) => void},
- *   pollKey: any,
- *   attempt: (phase: 'initial'|'retry') => Promise<any>,
- *   isSettled: (result: any) => boolean,
- *   wakeOn: string|string[],
+ *   wakeup?: {subscribe: (kinds: string|string[], listener: (pollKey: any) => void) => (() => void)},
+ *   timers: {set: (fn: () => void, ms: number) => any, clear: (handle: any) => void,
+ *            setInterval?: (fn: () => void, ms: number) => any, clearInterval?: (handle: any) => void},
+ *   pollKey?: any,
+ *   attempt: (phase: 'initial'|'retry'|'poll') => Promise<any>,
+ *   isSettled?: (result: any) => boolean,
+ *   classify?: (result: any) => {terminal: boolean, outcome?: string, payload?: any},
+ *   wakeOn?: string|string[],
  *   timeoutMs: number,
- *   respond: {settled: (payload: any) => void, timeout: () => void, error: (err: any) => void},
+ *   pollIntervalMs?: number,
+ *   mode?: 'wakeup'|'interval',
+ *   immediateFirstAttempt?: boolean,
+ *   respond: {[outcome: string]: (payload?: any) => void},
  *   onClientClose: (onClose: () => void) => (() => void),
+ *   registry?: {get: (k: any) => any, set: (k: any, v: any) => any, delete: (k: any) => any},
+ *   key?: any,
  * }} opts
  * @returns {Promise<void>}
  */
-export function longPoll ({ wakeup, timers, pollKey, attempt, isSettled, wakeOn, timeoutMs, respond, onClientClose }) {
+export function longPoll ({
+  wakeup, timers, pollKey, attempt, isSettled, classify, wakeOn, timeoutMs,
+  pollIntervalMs, mode, immediateFirstAttempt, respond, onClientClose,
+  registry, key,
+}) {
   return new Promise((resolve) => {
-    let state = initPoll();
+    let state = initPoll({ mode, immediateFirstAttempt });
     let unsubscribe = null;
     let timerHandle = null;
+    let intervalHandle = null;
     let offClose = null;
     // poll-machine 的 ATTEMPT_ERROR/RESPOND{outcome:'error'} 动作本身不携带
     // 原始错误对象（reducer 是纯状态机，不认识 Error 这种 io 副产物）——这里
@@ -46,19 +82,40 @@ export function longPoll ({ wakeup, timers, pollKey, attempt, isSettled, wakeOn,
     // 间断的调用链里传递它，供 respond.error(err) 拿到真实错误。
     let pendingError = null;
 
-    // 三者各自独立幂等：每个都在"用过就置空"，第二次调用（哪怕理论上不该
-    // 发生）看到已是 null 就什么都不做——不依赖外层的单一 cleanedUp 标志。
+    const usesRegistry = registry != null && key !== undefined && key !== null;
+    // 本实例的顶替钩子：登记进 registry，同 key 后来者拿它喂 SUPERSEDE。
+    const superseder = () => feed({ type: PollEventType.SUPERSEDE });
+
+    // 把一次 attempt 结果映射成 ATTEMPT_RESULT 事件：classify 优先（多结局），
+    // 否则退回布尔 isSettled（P1 逐字：outcome 缺省 = 'settled'）。
+    function resultEvent (result) {
+      if (typeof classify === 'function') {
+        const c = classify(result) || {};
+        if (c.terminal) {
+          return { type: PollEventType.ATTEMPT_RESULT, settled: true, outcome: c.outcome, result: c.payload };
+        }
+        return { type: PollEventType.ATTEMPT_RESULT, settled: false, result };
+      }
+      return { type: PollEventType.ATTEMPT_RESULT, settled: isSettled(result), result };
+    }
+
+    // 四类一次性资源各自独立幂等：每个都在"用过就置空"，第二次调用（哪怕理论
+    // 上不该发生）看到已是 null 就什么都不做——不依赖外层的单一 cleanedUp 标志。
+    // 周期 interval 由 DISARM_INTERVAL 动作单独拆（终态 teardown 必带），这里再
+    // 兜一次防漏。registry 摘除按身份核对，绝不误删同 key 后来者。
     function cleanup () {
       if (unsubscribe) { const fn = unsubscribe; unsubscribe = null; fn(); }
       if (timerHandle !== null) { const h = timerHandle; timerHandle = null; timers.clear(h); }
+      if (intervalHandle !== null) { const h = intervalHandle; intervalHandle = null; timers.clearInterval(h); }
       if (offClose) { const fn = offClose; offClose = null; fn(); }
+      if (usesRegistry && registry.get(key) === superseder) registry.delete(key);
     }
 
     function runAction (action) {
       switch (action.type) {
         case PollActionType.ATTEMPT:
           attempt(action.phase).then(
-            (result) => feed({ type: PollEventType.ATTEMPT_RESULT, settled: isSettled(result), result }),
+            (result) => feed(resultEvent(result)),
             (err) => { pendingError = err; feed({ type: PollEventType.ATTEMPT_ERROR }); },
           );
           break;
@@ -70,10 +127,17 @@ export function longPoll ({ wakeup, timers, pollKey, attempt, isSettled, wakeOn,
         case PollActionType.ARM_TIMER:
           timerHandle = timers.set(() => feed({ type: PollEventType.TIMEOUT }), timeoutMs);
           break;
+        case PollActionType.ARM_INTERVAL:
+          intervalHandle = timers.setInterval(() => feed({ type: PollEventType.POLL_TICK }), pollIntervalMs);
+          break;
+        case PollActionType.DISARM_INTERVAL:
+          if (intervalHandle !== null) { const h = intervalHandle; intervalHandle = null; timers.clearInterval(h); }
+          break;
         case PollActionType.RESPOND:
-          if (action.outcome === 'settled') respond.settled(action.payload);
+          if (action.outcome === 'error') respond.error(pendingError);
           else if (action.outcome === 'timeout') respond.timeout();
-          else if (action.outcome === 'error') respond.error(pendingError);
+          else if (action.outcome === 'settled') respond.settled(action.payload);
+          else { const fn = respond[action.outcome]; if (typeof fn === 'function') fn(action.payload); }
           break;
         case PollActionType.CLEANUP:
           cleanup();
@@ -95,8 +159,17 @@ export function longPoll ({ wakeup, timers, pollKey, attempt, isSettled, wakeOn,
       if (isTerminalPhase(state.phase)) resolve();
     }
 
+    // 同 key 顶替：先把旧实例顶掉（同步 resolve+cleanup 老实例，其 cleanup 会按
+    // 身份把自己从 registry 摘除），再登记本实例——顺序照抄 block-9 options-waiter
+    // 的 `previous(); … active.set(key, cancelCurrent)`。
+    if (usesRegistry) {
+      const prev = registry.get(key);
+      if (prev) prev();
+      registry.set(key, superseder);
+    }
+
     // 断连监听先挂上再 START：即便 attempt 同步落地也不会错过一次极早的
-    // client-close（onClientClose 的 off 由 CLEANUP 负责，"三者各自幂等"之一）。
+    // client-close（onClientClose 的 off 由 CLEANUP 负责，"各自幂等"之一）。
     offClose = onClientClose(() => feed({ type: PollEventType.CLIENT_CLOSE }));
     feed({ type: PollEventType.START });
   });

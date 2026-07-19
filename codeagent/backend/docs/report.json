@@ -2,36 +2,31 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "backend",
-  "task": "realtime_core P1：建仓 + copycat 实时内核逐字抽取 + 测试落位 + 审核脚本 + 文档骨架",
+  "task": "realtime_core P2：poll-machine reducer 新词汇（interval 形态 / POLL_TICK / SUPERSEDE / SUPERSEDED 终态）+ engine keyed registry + locks awaitIdle + block-9 两 poller 参考实现与特征验收 + 逐字门退役",
   "tier": "normal",
   "status": "approved",
-  "summary": "新仓 dev/realtime_core 建立并在 feat/extract-kernel 逐字抽取 copycat 实时内核七生产文件+六测试（全 0 改动、逐字节一致），npm test 48/48 全绿，纯度门 16 PASS、逐字门 13 PASS，未做任何功能扩展。",
+  "summary": "[backend 自检通过的 candidate，待 reviewagent 正式审核；分支未合 main] 在 P1 逐字内核之上向后兼容扩展 interval 轮询形态 / 同 key 顶替 / 延迟首发：poll-machine 加 PollMode·SUPERSEDED·POLL_TICK·SUPERSEDE·ARM/DISARM_INTERVAL，engine 加 classify·interval·keyed registry(createPollRegistry)，locks 加 awaitIdle；reference/ 两参考实现逐条复现 copycat block-9 next-question(1000ms/延迟首发/not_found·delivered/60s/close 静默) 与 options-waiter(800ms + keyed supersede)，配 fake-timers 特征测。既有 48 测试零修改全绿，新增 24 测试全绿(合计 72/72 串行)，纯度门 16/16 PASS，P1 逐字门退役删除由兼容门(48 零改全绿)接任。分支 feat/p2-kernel-extension 不合 main。",
   "git": {
     "protocol": "embedded-self-v2",
-    "branch": "feat/extract-kernel",
-    "base": "bb645c82c4f9559c554e1eea6d20365ecb15f654",
+    "branch": "feat/p2-kernel-extension",
+    "base": "7d41f8e5e39af47552a5450723497a34eca1c162",
     "head": "SELF",
     "diff_mode": "contains",
     "changed_files": [
-      "code/backend/package.json",
       "code/backend/src/transport/core/poll-machine.js",
-      "code/backend/src/transport/core/poll-machine.property.test.mjs",
-      "code/backend/src/transport/core/dispatch.js",
-      "code/backend/src/transport/core/dispatch.test.mjs",
       "code/backend/src/transport/engine.js",
-      "code/backend/src/transport/engine.integration.test.mjs",
-      "code/backend/src/transport/channels.js",
-      "code/backend/src/transport/channels.test.mjs",
       "code/backend/src/concurrency/locks.js",
-      "code/backend/src/concurrency/locks.mirror.test.mjs",
-      "code/backend/src/queue/ordering.js",
-      "code/backend/src/queue/ids.js",
-      "code/backend/src/queue/ids.test.mjs",
-      "review/reviewcode/check-kernel-purity.mjs",
+      "code/backend/src/transport/core/poll-machine.extended.property.test.mjs",
+      "code/backend/src/concurrency/locks.awaitidle.test.mjs",
+      "code/backend/reference/child-ab-next-question.ref.mjs",
+      "code/backend/reference/child-ab-next-question.ref.test.mjs",
+      "code/backend/reference/parent-options-waiter.ref.mjs",
+      "code/backend/reference/parent-options-waiter.ref.test.mjs",
       "review/reviewcode/check-verbatim-extraction.mjs",
       "module_docs/contract.md",
       "module_docs/rules.md",
-      "codeagent/backend/docs/worklog/2026-07-19-backend-extract-kernel.md",
+      "module_docs/handoff.md",
+      "codeagent/backend/docs/worklog/2026-07-19-backend-p2-kernel-extension.md",
       "codeagent/backend/docs/report.json"
     ]
   },
@@ -39,27 +34,44 @@
   "cross_module_impact": [],
   "escalation": null,
   "tests": {
-    "unit": { "passed": 48, "failed": 0, "cmd": "cd code/backend && npm test  (node --test, serial)" },
+    "unit": { "passed": 72, "failed": 0, "cmd": "cd code/backend && node --test --test-concurrency=1 (串行)" },
     "e2e": { "passed": 0, "failed": 0, "flow": "无 e2e：库模块，无服务进程/对外端点" }
+  },
+  "compat_gate": {
+    "existing_tests_unmodified": true,
+    "existing_pass": 48,
+    "new_pass": 24,
+    "evidence": "git diff main 对 6 个既有测试文件(poll-machine.property/engine.integration/dispatch/channels/locks.mirror/ids.test)为空；48 既有零修改 + 24 新增 = 72 全绿"
   },
   "self_check": {
     "reviewcode_passed": true,
     "attempts": 1,
     "failed_gates": [],
     "passed": true,
-    "detail": "check-kernel-purity.mjs 16 PASS/0 FAIL (scope=src/transport)；check-verbatim-extraction.mjs 13 PASS/0 FAIL（全 0 差异，并通过负向自检 exit=1）"
+    "detail": "check-kernel-purity.mjs 16 PASS/0 FAIL (scope=src/transport 未缩小；poll-machine 338 行 / engine 204 行 ≤500)；check-verbatim-extraction.mjs 按任务单 §4 退役并 git rm（使命完成，抽取叠加扩展后逐字比对必失真），兼容门改由既有 48 测试零修改全绿接任"
   },
-  "verbatim_extraction": {
-    "files_checked": 13,
-    "production_files": 7,
-    "test_files": 6,
-    "import_lines_changed": 0,
-    "note": "目标目录映射保留全部相对 import，13 文件逐字节一致，无一行 import 需改"
+  "block9_parity": {
+    "next_question_poller": "10 项行为逐条复现并特征测断言：1000ms/同步 attempt 分类/not_found·delivered 终止/其余继续/延迟首发(immediateFirstAttempt:false)/60s 超时/close 静默/cleanup 拆 interval+timer/active 计数——全绿",
+    "options_waiter": "同构 + 800ms + keyed supersede：同 key 新请求→旧恰好一次 respond.superseded + 旧 interval/timeout 清 + activeCount==registry.size；异 key 互不影响——全绿",
+    "micro_timing_note": "block-9 attempt 在 interval 回调内同步结算；本内核经 attempt→Promise→ATTEMPT_RESULT 事件，结算落 tick 后一个微任务。观测层行为一致(fire tick→flush→断言)，不影响任何可观测结局"
   },
+  "new_property_invariants": [
+    "① SUPERSEDE 打进非终态：旧实例恰好一次 RESPOND 且 outcome=superseded；随机序列(wakeup+interval 各 300 种子)交叉核 RESPOND≤1",
+    "② 任意终态后不再派发 ATTEMPT/POLL_TICK：随机序列(两形态各 300 种子) attemptAfterTerminal=0；终态后 POLL_TICK/SUPERSEDE/WAKEUP 只产 DISCARD、state 不变",
+    "③ interval 形态到终态：CLEANUP 恰好一次且必伴随一次 DISARM_INTERVAL(400 种子)；wakeup 形态终态从不产 DISARM_INTERVAL(200 种子对照)"
+  ],
+  "deviations": [
+    "config 放 initPoll 而非 START 事件（任务单允许其一，选最小改动面）",
+    "DISARM_INTERVAL 与 CLEANUP 分离而非合并（满足'CLEANUP 恰好一次且必含 DISARM_INTERVAL'，同时 wakeup teardown 保持 [CLEANUP] 与 P1 逐字一致）",
+    "多结局用可选 classify 取代布尔 isSettled（未传退回 isSettled，P1 调用方零改动）",
+    "keyed registry 注入而非 engine 内建全局（保持 engine 零全局、可测）",
+    "参考实现置于 code/backend/reference/（transport/ 纯度门 scope 之外）——它们是合法引用 block-9 领域词的领域适配器，非内核",
+    "lightweight 模式下单 agent 按任务单显式指令一并更新 module_docs(contract/rules/handoff)与 git rm review/ 下逐字脚本；下游仍有独立 reviewagent 审 candidate"
+  ],
   "tech_debt": [
-    "ordering.js 无专属测试：源仓覆盖它的 queue-core/queue-invariants 测试纠缠了未抽取文件（normalize/views/transitions/dedupe），保守未抽（详见 worklog 决策 1）",
-    "符号命名带领域味（sessionLockKey/skillLockKey/orderedSessionEvents/genEventId 等），P5 契约定稿时中性化重命名候选（破 API）",
-    "locks.js 形参 skillId 为领域词——concurrency/ 无法纳入纯度门的直接原因（P2+ 中性化候选）",
-    "ordering.js void options 哑参 + maxEventSeq 无 null 兜底：逐字保留老行为，P2 清理候选"
+    "符号命名带领域味(sessionLockKey/orderedSessionEvents/genEventId 等) P5 中性化候选(破 API)——沿用 P1 债",
+    "ordering.js 无专属测试——沿用 P1 债",
+    "locks.js 形参 skillId 领域词——沿用 P1 债",
+    "参考实现的同步→事件微时序适配是事件驱动内核固有差异，SSE/其它传输适配时需同样注意(P5 SSE 参考适配器时复核)"
   ]
 }

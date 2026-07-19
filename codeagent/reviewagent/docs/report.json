@@ -2,48 +2,43 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "reviewagent",
-  "task": "P1 内核逐字抽取审核（feat/extract-kernel）",
+  "task": "P2 内核扩展审核（feat/p2-kernel-extension）：interval 形态 + POLL_TICK/SUPERSEDE + SUPERSEDED 终态 + keyed registry + awaitIdle + block-9 两 poller 参考验收 + 逐字门退役",
   "tier": "normal",
   "status": "approved",
-  "summary": "七项审核清单全过：diff 集合与 report.json changed_files 完全相等；verbatim 13/13、purity 16/16（scope=transport）、npm test 48/48 独立重跑与自报一致；两道机械门经防空转自检（篡改后正确变红，还原后仓库逐字节回归干净）证明非空过；4 个抽查文件与 copycat 源逐字节 IDENTICAL；3 处任务单外偏离核实理由成立；留痕（report.json/commit trailer）合规；copycat 源仓未改（HEAD=46c2c94，clean）。业务代码一行未改。",
+  "summary": "七项新逻辑审核全过：①兼容门——6 个既有测试文件零改动（不在 15 项 diff 内），串行 72/72 全绿（48 既有 + 24 新）；②三条新 property 不变量经 2 处变异自检证明非空过（变异1 丢 DISARM_INTERVAL→不变量③ 变红；变异2 SUPERSEDE 停非终态→不变量① 变红），均 git checkout 还原、porcelain 空、72/72 复绿，业务代码一行未改；③亲读 copycat block-9 两 poller 源逐条核对参考实现，微时序适配裁定无可观测差异（同步 attempt 仍在同步点执行、竞争事件皆宏任务排在微任务后、SUPERSEDE/TIMEOUT/CLOSE 同步喂入）；④纯度门独立重跑 16/16，poll-machine grep 零 import/timer/Promise（仅注释命中），reference/ 在 scope 外理由成立，文件 ≤500；⑤5 处偏离更保守/合理无隐患；⑥越域仅 handoff.md 轻微越出任务单显式指令（铁律11 正当、lightweight 模式 CFO 已知情、标出不打回）；⑦backend report.json embedded-self-v2 机械核验全过（tracked/clean、SELF→f909d37、base 7d41f8e 祖先、changed_files 15 与 no-renames diff 集合完全相等）、trailer 合法、worklog 完整。verdict=approved，分支未合 main，交合并门。",
   "git": {
     "protocol": "embedded-self-v2",
-    "branch": "feat/extract-kernel",
-    "base": "bb645c82c4f9559c554e1eea6d20365ecb15f654",
+    "branch": "feat/p2-kernel-extension",
+    "base": "7d41f8e5e39af47552a5450723497a34eca1c162",
     "head": "SELF",
     "diff_mode": "contains",
     "changed_files": [
-      "review/reviewreport/2026-07-19-review-extract-kernel.md",
+      "review/reviewreport/2026-07-19-review-p2-kernel-extension.md",
       "module_docs/reviewlog.md",
-      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-extract-kernel-review.md",
+      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-p2-kernel-extension-review.md",
       "codeagent/reviewagent/docs/report.json"
     ]
   },
   "review_target": {
-    "branch": "feat/extract-kernel",
-    "base": "bb645c82c4f9559c554e1eea6d20365ecb15f654",
-    "head": "2a039ae0892b0f7eb75064bbd566efeda921b2bf",
+    "branch": "feat/p2-kernel-extension",
+    "base": "7d41f8e5e39af47552a5450723497a34eca1c162",
+    "head": "f909d377a778019e78ed5983688707e10179d4af",
     "diff_mode": "exact",
     "changed_files": [
-      "code/backend/package.json",
+      "code/backend/reference/child-ab-next-question.ref.mjs",
+      "code/backend/reference/child-ab-next-question.ref.test.mjs",
+      "code/backend/reference/parent-options-waiter.ref.mjs",
+      "code/backend/reference/parent-options-waiter.ref.test.mjs",
+      "code/backend/src/concurrency/locks.awaitidle.test.mjs",
       "code/backend/src/concurrency/locks.js",
-      "code/backend/src/concurrency/locks.mirror.test.mjs",
-      "code/backend/src/queue/ids.js",
-      "code/backend/src/queue/ids.test.mjs",
-      "code/backend/src/queue/ordering.js",
-      "code/backend/src/transport/channels.js",
-      "code/backend/src/transport/channels.test.mjs",
-      "code/backend/src/transport/core/dispatch.js",
-      "code/backend/src/transport/core/dispatch.test.mjs",
+      "code/backend/src/transport/core/poll-machine.extended.property.test.mjs",
       "code/backend/src/transport/core/poll-machine.js",
-      "code/backend/src/transport/core/poll-machine.property.test.mjs",
-      "code/backend/src/transport/engine.integration.test.mjs",
       "code/backend/src/transport/engine.js",
       "codeagent/backend/docs/report.json",
-      "codeagent/backend/docs/worklog/2026-07-19-backend-extract-kernel.md",
+      "codeagent/backend/docs/worklog/2026-07-19-backend-p2-kernel-extension.md",
       "module_docs/contract.md",
+      "module_docs/handoff.md",
       "module_docs/rules.md",
-      "review/reviewcode/check-kernel-purity.mjs",
       "review/reviewcode/check-verbatim-extraction.mjs"
     ]
   },
@@ -53,28 +48,47 @@
   "issues": [
     {
       "severity": "info",
-      "file": "codeagent/backend/docs/report.json",
+      "file": "module_docs/handoff.md",
       "line": null,
       "归属": "backend",
-      "summary": "backend 自报 tier=normal，按项目文档体系 normal 应配 diary，本仓当前无 diary。任务单本身（§8）未把 diary 列为交付物，且本任务由 CFO 直派、无独立模块 arbiter 定级，故不计入本次 verdict，仅登记供 CFO/未来 arbiter 参考。"
+      "summary": "backend 在 lightweight 单 agent 模式下更新了 handoff.md，但任务单 §留痕与验收未显式点名 handoff（只点名 contract.md + rules.md + 逐字门退役）。内容合理（接口变更后按铁律11 同步关联文档属正当），严格限于本仓本模块、无跨模块/跨仓越界。lightweight 模式 CFO 已知情，不作为 reject 理由，仅标出供 CFO/未来模块 arbiter 知悉。"
+    }
+  ],
+  "compat_gate_check": {
+    "existing_test_files_unmodified": true,
+    "existing_test_files": ["locks.mirror.test.mjs", "queue/ids.test.mjs", "transport/channels.test.mjs", "transport/core/dispatch.test.mjs", "transport/core/poll-machine.property.test.mjs", "transport/engine.integration.test.mjs"],
+    "evidence": "6 文件均不在 git diff --no-renames 7d41f8e..f909d37 的 15 项改动集合内；串行 node --test --test-concurrency=1 = 72 pass/0 fail（48 既有 + 24 新）"
+  },
+  "mutation_self_check": [
+    {
+      "target_invariant": "③ interval 终态 CLEANUP==1 且必含 DISARM_INTERVAL",
+      "injected": "poll-machine.js teardown() 丢弃 DISARM_INTERVAL（interval 终态只 [CLEANUP]）",
+      "result": "extended.property 测试 #5（不变量③随机序列）+ #1（不变量① interval teardown 断言）FAIL，共 2 fail",
+      "reverted": "git checkout -- poll-machine.js；git status --porcelain 空"
+    },
+    {
+      "target_invariant": "① SUPERSEDE 后恰好一次 RESPOND{superseded}",
+      "injected": "poll-machine.js reduceSupersede() 停在非终态 WAITING（允许后续 settled 二次 RESPOND）",
+      "result": "extended.property 测试 #1（显式）+ #2（随机 respondCount≤1）FAIL，共 3 fail",
+      "reverted": "git checkout -- poll-machine.js；git status --porcelain 空、git diff HEAD 空、全量 72/72 复绿"
     }
   ],
   "scripts": [
-    { "name": "check-verbatim-extraction.mjs", "result": "13 PASS / 0 FAIL" },
-    { "name": "check-kernel-purity.mjs", "result": "16 PASS / 0 FAIL (scope=code/backend/src/transport)" },
-    { "name": "npm test (node --test, serial)", "result": "48 pass / 0 fail / 0 skip" }
+    { "name": "check-kernel-purity.mjs", "result": "16 PASS / 0 FAIL (scope=code/backend/src/transport 未缩小)" },
+    { "name": "node --test --test-concurrency=1 (串行全量)", "result": "72 pass / 0 fail / 0 skip" },
+    { "name": "grep poll-machine.js (import/timer/Promise)", "result": "仅命中注释行，生产代码零 import/零 timer/零 Promise" }
   ],
   "tests_verified": true,
   "contract_conformance": true,
-  "anti_gaming_check": {
-    "verbatim_gate": "篡改 code/backend/src/queue/ordering.js 第20行非 import 代码 → 门 FAIL(exit1)；已还原，git status/diff 干净",
-    "purity_gate": "篡改 code/backend/src/transport/engine.js 插入 import 'fastify' → 门 FAIL(exit1)；已还原，git status/diff 干净"
+  "block9_parity_verified": {
+    "next_question_poller": "10 项行为逐条核对 copycat 源一致（1000ms/同步 attempt 分类/not_found·delivered 终止/延迟首发/60s/close 静默/cleanup 拆 interval+timer/active 计数）",
+    "options_waiter": "同构 + 800ms + keyed supersede：顶替恰好一次 + 按身份 registry.delete 不误删 + 异 key 互不影响 + activeCount==registry.size",
+    "micro_timing_verdict": "无可观测差异——同步 attempt 仍在 ATTEMPT 动作同步点执行，仅 respond 分支推迟一微任务；close/timeout/下一 tick 皆宏任务排在微任务队列后；SUPERSEDE/TIMEOUT/CLIENT_CLOSE/POLL_TICK 同步喂入无推迟。首发时机/超时时序/顶替结局/close 语义与 block-9 逐位一致"
   },
-  "spot_check_verbatim": [
-    { "file": "code/backend/src/transport/core/poll-machine.js", "vs": "copycat services/realtime/core/poll-machine.js", "result": "IDENTICAL" },
-    { "file": "code/backend/src/concurrency/locks.js", "vs": "copycat services/session-state/locks.js", "result": "IDENTICAL" },
-    { "file": "code/backend/src/transport/channels.test.mjs", "vs": "copycat services/realtime/channels.test.mjs", "result": "IDENTICAL" },
-    { "file": "code/backend/src/transport/engine.js", "vs": "copycat services/realtime/engine.js", "result": "IDENTICAL" }
-  ],
-  "copycat_source_untouched": { "path": "/srv/aimergent/0/functions/copycat", "head": "46c2c94b16f93e03b5635219621e1f2e6fb68f06", "status": "clean" }
+  "deviations_reviewed": "5 处（config@initPoll / DISARM_INTERVAL 与 CLEANUP 分离 / classify 取代 isSettled / registry 注入 / reference 置 scope 外）均更保守或合理、无隐患；均核实通过",
+  "留痕_check": {
+    "backend_report_embedded_self_v2": "PASS：tracked/clean（porcelain 空）；SELF→f909d377（git log -1 -- report.json）；base 7d41f8e 为 head 祖先（merge-base --is-ancestor 成立）；changed_files 15 与 no-renames diff 集合完全相等",
+    "commit_trailer": "PASS：Agent-Attribution: backend@dev/realtime_core+p2-kernel-extension，三段小写 slug 可解析、唯一",
+    "worklog": "PASS：完整（改动总览 + block-9 逐条对照表 + 5 决策 + 微时序诚实记录 + 尺寸 + 自检结论 + lightweight 沙盒说明）"
+  }
 }
