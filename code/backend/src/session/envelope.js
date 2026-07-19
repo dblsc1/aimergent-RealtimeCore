@@ -4,9 +4,9 @@
 //   - `streamId` / `seq` / `at`：日志层分配，调用方**不可指定**（出现即 TypeError，
 //     严格失败优于静默覆盖——保守决策）。`seq` 流内严格单调、连续、从 1 起。
 //   - `id`：调用方可自带（跨系统去重场景）；缺省由注入的 clock/rng 生成，
-//     格式沿用 queue/ids.js 的 `evt-<clock>-<rand36>` 约定。此处本地实现同
-//     一格式而非跨目录 import——session/ 的纯度门要求 import 不出本目录
-//     （保守决策，格式一致性由测试钉住）。
+//     直接复用 `queue/ids.js::genEventId`（`evt-<clock>-<rand36>`）。P5 收债：
+//     原本地重复实现已去重——纯度门对 session/ 开受控白名单（仅 `../queue/ids.js`
+//     一个纯工具文件，该文件本身纳入同 5 项严格检查），格式的唯一事实回到 ids.js。
 //   - `type`：非空字符串，库不解释。
 //   - `v`：事件 schema 版本号，正整数，调用方声明，缺省 1。P3a 只承载字段，
 //     升级函数（upcaster）是 P3b 的活——但字段必须现在进信封（版本化不可后补）。
@@ -15,6 +15,8 @@
 //
 // 非确定性一律走注入（ctx 约定同 queue/ids.js）：clock() → 毫秒时间戳，
 // rng() → [0,1) 浮点。session/ 生产代码零全局时钟/零全局随机数（纯度门机械核）。
+
+import { genEventId } from '../queue/ids.js';
 
 const ALLOWED_INPUT_KEYS = new Set(['type', 'v', 'id', 'payload']);
 const ASSIGNED_KEYS = ['streamId', 'seq', 'at'];
@@ -62,8 +64,10 @@ export function sealEnvelopes ({ streamId, lastSeq, events, clock, rng }) {
     if (event.id !== undefined && (typeof event.id !== 'string' || event.id.length === 0)) {
       throw new TypeError(`events[${i}].id must be a non-empty string when supplied`);
     }
+    // 缺省 id 复用 ids.js 的生成器；clock 传"已取的 at"——保持 P3a 既有行为逐字
+    // 不变（id 的时间戳分量 === 信封 at，同一次 seal 不二次读钟）。
     const at = clock();
-    const id = event.id !== undefined ? event.id : `evt-${at}-${rng().toString(36).slice(2, 8)}`;
+    const id = event.id !== undefined ? event.id : genEventId({ clock: () => at, rng });
     sealed.push(Object.freeze({
       streamId,
       seq: lastSeq + i + 1,

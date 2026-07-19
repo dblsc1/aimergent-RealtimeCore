@@ -11,20 +11,20 @@
 
 1. **纯 ESM、零 runtime 依赖**是本库的卖点：`package.json` `"type":"module"`，`npm test` = `node --test`，不引第三方 runtime 包（devDependencies 也尽量为零）。新增代码不得破坏"内核零依赖"。
 2. 代码分区（`code/backend/src/`）：`transport/`（实时引擎壳 + long-poll reducer + 命令分发 + 频道）、`concurrency/`（keyed 锁）、`queue/`（事件排序 + id 生成）、`session/`（P3a 起：会话内核——事件日志 + 消费组游标投递，"记账本 + 书签"）、`machine/`（P4 起：defineMachine 声明式转移表工具，纯逻辑）。测试 `.test.mjs`/`.property.test.mjs` 旁置于被测模块同目录。
-3. **纯度门**：`review/reviewcode/check-kernel-purity.mjs` 三 scope——①`transport/` 生产 .js：无 transport/存储/领域层 import、无 copycat 领域词、无 `db.transaction(`、单文件 ≤500 行；②`session/` 生产 .js（P3a 扩展 scope，更严）：import 不出 session/ 目录（**零 transport import**，对 longPoll/wakeup 的依赖只许以 port 形状注入）、零领域词（扩展词表 scenario/question/skill/scene/round）、**零 `Date.now(`/`Math.random(`**（clock/rng 一律注入）、无 `db.transaction(`、≤500 行；③`machine/` 生产 .js（P4 扩展 scope，与 session 同 5 项检查，内部共用 `checkStrictScope` helper）。`concurrency/`、`queue/` **不在纯度门覆盖内**（含领域相邻词 `rounds`/`skillId`，与 copycat 老门 scope 一致）。
+3. **纯度门**：`review/reviewcode/check-kernel-purity.mjs` 三 scope——①`transport/` 生产 .js：无 transport/存储/领域层 import、无 copycat 领域词、无 `db.transaction(`、单文件 ≤500 行；②`session/` 生产 .js（P3a 扩展 scope，更严）：import 不出 session/ 目录（**零 transport import**，对 longPoll/wakeup 的依赖只许以 port 形状注入；**P5 收债起唯一受控白名单 = `queue/ids.js`**——envelope 缺省 id 生成去重到唯一事实源，白名单文件本身纳入同 5 项严格检查即"白名单闭环"，不留纯度盲区）、零领域词（扩展词表 scenario/question/skill/scene/round）、**零 `Date.now(`/`Math.random(`**（clock/rng 一律注入）、无 `db.transaction(`、≤500 行；③`machine/` 生产 .js（P4 扩展 scope，与 session 同 5 项检查，内部共用 `checkStrictScope` helper）。`concurrency/`、`queue/` 的其余文件**不在纯度门覆盖内**（`ordering.js` 含领域相邻词 `rounds`，与 copycat 老门 scope 一致）。
 4. **逐字抽取纪律（v0.1 遗产 → P2 兼容门）**：`code/backend/src/` 七文件起点是 copycat 内核的逐字节抽取。P1 的 `check-verbatim-extraction.mjs` 逐字门**已于 P2 退役并删除**——它的使命（证明抽取忠实）已完成；抽取一旦叠加功能扩展，逐字比对必然失真，继续留着只会误报。接任的**兼容门 = P1 移植的既有 48 个 node:test 用例一行不改、必须全绿**（新功能只准新增测试，不准改既有测试）。P2+ 功能扩展在既有导出行为之上**只增不改**：`initPoll`/`reduce`/`longPoll`/`withLock` 等的既有调用面与行为保持逐字兼容，新增形态（interval / 顶替 / classify / registry / awaitIdle）走新参数、缺省即旧行为（要改既有行为先记 worklog + 评估消费方 + 走 CR）。
 
 ## 跨仓依赖机制
 
-- 未来消费方引用 realtime_core：**用 git tag 固定版本**（本单决策 3）。P1 无消费方，机制暂不落地，仅此记录。P5 定稿时随 semver v1.0 tag 正式启用。
+- 未来消费方引用 realtime_core：**用 git tag 固定版本**（P1 决策 3）。P5 契约已定稿 v1.0.0；`v1.0.0` tag 由 CFO 在合并后的 main squash commit 上打（打完即正式启用本机制）。
 
 ## 启动与自检
 
 - 安装：无（零 runtime 依赖；`code/backend/` 无需 `npm install`）。
 - 启动：不适用（库，无服务进程）。
 - lint / typecheck：暂无（v0.1 纯抽取，未引入 lint 工具链）。
-- test：`cd code/backend && npm test`（= `node --test`，串行；P4 = 187 个 node:test 用例全绿，其中 P1 既有 48 + P2 新增 24 + P3a 新增 38 + P3b 新增 43（合计 153 个既有零修改）+ P4 新增 34 个（machine 单测 32 + property 2））。串行跑：`node --test --test-concurrency=1`（内存紧）。
-- 审核脚本：`node review/reviewcode/check-kernel-purity.mjs`（须全 PASS；三 scope = transport 16 项 + session 40 项（8 文件×5）+ machine 5 项（P4 起 1 文件×5）= 61 项）。逐字门 `check-verbatim-extraction.mjs` 已于 P2 退役删除（见技术与目录 §4），兼容改由"既有测试零修改全绿"接任（P4 兼容门 = 既有 153 个零修改全绿）。
+- test：`cd code/backend && npm test`（= `node --test`，串行；P5 = 201 个 node:test 用例全绿，其中 P1 既有 48 + P2 新增 24 + P3a 新增 38 + P3b 新增 43 + P4 新增 34（合计 187 个既有零修改）+ P5 新增 14 个（`queue/ordering.test.mjs` 8 清 P1 遗留债 + `reference/sse-adapter.ref.test.mjs` 6 实测 SSE 形态））。串行跑：`node --test --test-concurrency=1`（内存紧）。
+- 审核脚本：`node review/reviewcode/check-kernel-purity.mjs`（须全 PASS；P5 = 66 项：transport 16 + session 40（8 文件×5）+ machine 5（1 文件×5）+ 白名单闭环 5（queue/ids.js×5，P5 收债起——session/ 获准 import 的唯一域外文件本身纳入同 5 项严格检查））。逐字门 `check-verbatim-extraction.mjs` 已于 P2 退役删除（见技术与目录 §4），兼容改由"既有测试零修改全绿"接任（P5 兼容门 = 既有 187 个零修改全绿）。
 
 ## 演进路线图（P2→P5）
 
@@ -50,11 +50,13 @@
 **与 decide 的组合边界**：machine 只回答"允许吗/到哪去"，不产事件、不折叠领域状态；decide 产事件、evolve 折叠状态。`reference/classroom-aggregate.ref.mjs` 把手写 phase if/else 改 `can(...)` 表驱动守卫、既有 4 参考测试零修改全绿（等价证明）。两不变量（状态封闭性/终态吸收性）property 测钉死。纯度门加 machine/ scope（56→61）。
 **动机（已达成）**：P2 手写 reducer 能跑但难维护；转移表把状态机结构显式化、可静态校验，是内核从"能用"到"好用"的关键；也是 copycat Step-5 收编 session.status 五值散落问题的预备工具。
 
-### P5 · 正式契约 + semver v1.0 + 迁平台层
-定稿 `module_docs/contract.md` **正式契约**（draft 标注全部转正、启用冻结项标注）、打 semver **v1.0** tag、**经 CR 迁入 `0/` 平台层**（触及 `0/AGENTS.md` 顶层结构，需用户逐字确认）、补 **SSE 参考适配器测试**（证明内核能驱动 SSE 传输，不止 long-poll）。P5 一并清偿以下技术债：
-- **信封 id 与 `queue/ids.js` 去重**：`session/envelope.js` 的 `evt-<clock>-<rand36>` id 生成与 `queue/ids.js::genEventId` 格式重复实现（session/ 纯度门禁跨目录 import 所致）——P5 统一到一处（或提取共享纯工具，或松绑纯度门允许受控引用）。
-- **符号中性化**：`sessionLockKey`/`orderedSessionEvents`/`genEventId`/`locks.js` 形参 `skillId` 等带领域味命名，正式契约冻结前一次性中性化（破 API，故必须趁 v1.0 定版做）。
-- **`ordering.js` 无专属测试**（P1 遗留）补齐。
-- **真实持久化适配器**（`logStore`/`snapshotStore` 照端口契约）随首个消费方落地。
-- **`defineMachine` YAGNI 项**（层级/并行/actor/actions）按真实需求评估是否纳入 v1.0，或明确留在 v1.x。
+### P5 · 正式契约 + semver v1.0 + 迁平台层 ◐ 库内部分已完成（feat/p5-contract-v1）
+**已完成（本分支）**：`module_docs/contract.md` 定稿为 **v1.0.0 正式契约**（35 导出符号 · 5 端口 · 15 条不变量承诺表与测试互指、semver 政策、信封只加不改、遗产兼容面标注）；**SSE 参考适配器 + 6 测试**（`reference/sse-adapter.ref.mjs`——实测三形态共用内核零改动，"RESPOND 后连接仍活着继续推" = 顺序复合多个 poll 生命周期，无内核缺口）；package.json → 1.0.0；README 快速上手。
+**移交项（不属本分支职权）**：① **`git tag v1.0.0` 由 CFO 在合并后的 main squash commit 上打**（本分支不打 tag）；② **迁 `0/` 平台层**（CR、`0/AGENTS.md` 顶层结构、CONTRACTS-INDEX 登记、模式切 `governed`）**待 CFO 治理流程**（需用户逐字确认），不随本分支落地。
+P5 技术债逐条下落：
+- **信封 id 与 `queue/ids.js` 去重** ✅ **P5 已清偿**：`session/envelope.js` 改为 import `queue/ids.js::genEventId`（唯一事实源），以"clock 传已取 at"保持既有行为逐字不变（id 时间戳分量 === 信封 at）；纯度门开受控白名单（仅此一个文件）并把 ids.js 本身纳入同 5 项严格检查（白名单闭环，61→66 项）。既有测试零修改全绿为兼容证明。
+- **符号中性化** ⏭ **移交 v2/迁平台层专项（P5 决策，未清偿）**：`sessionLockKey`/`skillLockKey`/`orderedSessionEvents`/`maxEventSeq`/`genTurnId` 等领域味命名**未**在 v1.0 中性化——本单兼容门为"既有 187 测试零修改全绿"（最高优先级纪律），重命名必改测试，二者硬冲突；且 `ordering.js` 读 copycat `session.rounds` 结构，是 copycat 换装期的硬依赖遗产面，此刻改名徒增换装成本。处置：契约把它们标注为**遗产兼容面**（冻结如现状、新消费方不应用于新数据建模），中性化 = major，随 v2 或迁平台层 CR 一并做（届时允许改测试、有 CFO 协调消费方）。原"趁 v1.0 定版做"的设想与兼容门冲突，按保守方案让位——记录于 backend P5 worklog。
+- **`ordering.js` 无专属测试**（P1 遗留）✅ **P5 已清偿**：新增 `queue/ordering.test.mjs` 8 用例，钉死排序键（seq→createdAt→round）、哑参数 `assignMissing`、null/空洞容忍、`maxEventSeq(null)` 保留崩溃行为、以及"投影跳过无 type 事件但 maxEventSeq 计入"的既有不对称。
+- **真实持久化适配器** ⏭ **移交首个消费方落地期（维持 P3b 决策）**：端口契约已在 v1.0 contract 正式化（含实现方义务清单），内存参考实现即可执行规格；无消费方时写适配器就是无处跑的死代码。
+- **`defineMachine` YAGNI 项** ✅ **P5 已评估：明确留在 v1.x 之外**：层级/并行/actor/entry-exit-actions/延迟转移/字符串 target 简写全部**不纳入 v1.0**（contract "明确非目标"节冻结此边界）；copycat Step-5 收编 session.status 只需平表 + can/transition，无一项 YAGNI 需求实据。将来需求出现 = minor/v2 扩展，走契约变更流程。
 **动机**：迁 `0/` 平台层意味着对外承诺冻结、多模块可依赖——必须先有稳定契约、版本号、跨传输验证、清偿破 API 的债，才能承担平台层的复用责任。

@@ -151,13 +151,16 @@ const GLOBAL_NONDET = /\b(?:Date\s*\.\s*now|Math\s*\.\s*random)\s*\(/g;
  * 对一个纯逻辑子目录跑 5 项严格纯度检查。
  * @param {string} dir 目录绝对路径 @param {string} label 报告用短名（session/machine）
  * @param {string} banner 段落标题
+ * @param {string[]} [allowedOutside] 受控白名单：允许 import 解析到的**具体文件**
+ *   绝对路径（P5 收债：session/envelope.js 复用 queue/ids.js 的 id 生成器——去重
+ *   优先于目录自闭；白名单文件本身必须在别处纳入同 5 项严格检查，见 [⑮] 段）。
  */
-function checkStrictScope (dir, label, banner) {
+function checkStrictScope (dir, label, banner, allowedOutside = [], onlyFiles = null) {
   if (!fs.existsSync(dir)) {
     console.log(`\n${banner.replace(/：.*/, '')} SKIP: ${label}/ 不存在（该扩展之前的分支）`);
     return;
   }
-  const files = collect(dir).sort();
+  const files = (onlyFiles ?? collect(dir)).sort();
   if (files.length === 0) fail(`${label}/ 存在但没有任何生产 .js — 结构异常`);
 
   console.log(`\n${banner}`);
@@ -180,12 +183,14 @@ function checkStrictScope (dir, label, banner) {
       if (!isNode && !isSibling) { fail(`${rel}: 非 node: 内建、非 ./ 兄弟的裸包 import「${spec}」（纯逻辑内核不应依赖第三方包）`); importOk = false; continue; }
       if (isSibling) {
         const resolved = path.resolve(path.dirname(full), spec);
-        if (!resolved.startsWith(dir + path.sep) && resolved !== dir) {
+        const inDir = resolved.startsWith(dir + path.sep) || resolved === dir;
+        const whitelisted = allowedOutside.includes(resolved);
+        if (!inDir && !whitelisted) {
           fail(`${rel}: import「${spec}」逃出 ${label}/ 目录（跨层耦合）`); importOk = false;
         }
       }
     }
-    if (importOk) pass(`${rel}: import 不出 ${label}/、零 transport 耦合（${specs.length ? specs.join(',') : '零 import'}）`);
+    if (importOk) pass(`${rel}: import 不出 ${label}/（白名单外零逃逸）、零 transport 耦合（${specs.length ? specs.join(',') : '零 import'}）`);
 
     // 扩展领域词（剥注释后的代码）。
     const code = stripComments(src);
@@ -211,11 +216,15 @@ function checkStrictScope (dir, label, banner) {
   }
 }
 
-// ⑤-⑨ P3a session/ 扩展 scope。
+// ⑤-⑨ P3a session/ 扩展 scope。P5 收债起：受控白名单允许且仅允许 import
+// queue/ids.js（envelope 缺省 id 生成去重到唯一事实源；该文件本身在 [⑮] 段
+// 纳入同 5 项严格检查，保证被引入 session/ 的代码不弱于 session/ 自身标准）。
+const QUEUE_IDS = path.join(repoRoot, 'code/backend/src/queue/ids.js');
 checkStrictScope(
   path.join(repoRoot, 'code/backend/src/session'),
   'session',
-  '[⑤-⑨] session/ 逐文件：import 不出目录（零 transport）· 零领域词(扩展词表) · 零 Date.now/Math.random · db.transaction(=0 · ≤500 行',
+  '[⑤-⑨] session/ 逐文件：import 不出目录（白名单：queue/ids.js）· 零 transport · 零领域词(扩展词表) · 零 Date.now/Math.random · db.transaction(=0 · ≤500 行',
+  [QUEUE_IDS],
 );
 
 // ⑩-⑭ P4 machine/ 扩展 scope（声明式状态机工具；同 session 的 5 项严格检查）。
@@ -224,6 +233,22 @@ checkStrictScope(
   'machine',
   '[⑩-⑭] machine/ 逐文件：import 不出目录（零 transport）· 零领域词(扩展词表) · 零 Date.now/Math.random · db.transaction(=0 · ≤500 行',
 );
+
+// ⑮ P5 白名单闭环：session/ 获准引用的 queue/ids.js 本身必须过同 5 项严格检查
+// （import 自闭/零 transport、零扩展领域词、零 Date.now/Math.random、无
+// db.transaction、≤500 行）——白名单不成为纯度盲区。注意：queue/ 其余文件
+// （ordering.js 含领域相邻词 rounds）仍不在纯度门覆盖内，scope 不变。
+if (fs.existsSync(QUEUE_IDS)) {
+  checkStrictScope(
+    path.join(repoRoot, 'code/backend/src/queue'),
+    'queue',
+    '[⑮] 白名单文件 queue/ids.js：同 session/machine 的 5 项严格检查（白名单闭环）',
+    [],
+    [QUEUE_IDS],
+  );
+} else {
+  fail('queue/ids.js 不存在但被 session/ 白名单引用——结构异常');
+}
 
 console.log(`\n=== kernel-purity: ${passes} PASS / ${failures} FAIL ===`);
 process.exit(failures === 0 ? 0 : 1);
