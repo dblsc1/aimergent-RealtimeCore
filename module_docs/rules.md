@@ -23,8 +23,8 @@
 - 安装：无（零 runtime 依赖；`code/backend/` 无需 `npm install`）。
 - 启动：不适用（库，无服务进程）。
 - lint / typecheck：暂无（v0.1 纯抽取，未引入 lint 工具链）。
-- test：`cd code/backend && npm test`（= `node --test`，串行；P3a = 110 个 node:test 用例全绿，其中 P1 既有 48 + P2 新增 24（合计 72 个既有零修改）+ P3a 新增 38 个）。串行跑：`node --test --test-concurrency=1`（内存紧）。
-- 审核脚本：`node review/reviewcode/check-kernel-purity.mjs`（须全 PASS；P3a 起双 scope = transport 16 项 + session 20 项 = 36 项）。逐字门 `check-verbatim-extraction.mjs` 已于 P2 退役删除（见技术与目录 §4），兼容改由"既有测试零修改全绿"接任（P3a 兼容门 = 既有 72 个零修改全绿）。
+- test：`cd code/backend && npm test`（= `node --test`，串行；P3b = 153 个 node:test 用例全绿，其中 P1 既有 48 + P2 新增 24 + P3a 新增 38（合计 110 个既有零修改）+ P3b 新增 43 个）。串行跑：`node --test --test-concurrency=1`（内存紧）。
+- 审核脚本：`node review/reviewcode/check-kernel-purity.mjs`（须全 PASS；双 scope = transport 16 项 + session 40 项（P3b 起 8 文件×5）= 56 项）。逐字门 `check-verbatim-extraction.mjs` 已于 P2 退役删除（见技术与目录 §4），兼容改由"既有测试零修改全绿"接任（P3b 兼容门 = 既有 110 个零修改全绿）。
 
 ## 演进路线图（P2→P5）
 
@@ -41,8 +41,8 @@
 #### P3a · 事实日志 + 游标投递 ✅ 已完成（feat/p3a-log-cursors）
 `src/session/`：事件信封（`{streamId,seq,id,type,v,at,payload}`，`v` 版本字段即刻进信封）、存储端口 + `createMemoryLogStore`（CAS append / read / getCursor / advanceCursor 只前进）、`createDelivery`（publish/pull/ack 分离 at-least-once + subscribe **注入复用 P2 longPoll/wakeup**，零自制轮询）。四条不变量（已确认序列=日志连续前缀 / seq 连续+CAS 唯一胜者 / 游标只前进 / 崩溃重建后仍成立）固定种子 property 测钉死；`reference/classroom-feed.ref.mjs` 演示三消费组独立进度与断线重连。纯度门扩展 session/ scope（零 transport import、零 Date.now/Math.random、扩展领域词表）。
 
-#### P3b · upcaster + decide/evolve 聚合语义（待开单）
-事件 schema 升级函数（upcaster：读取时把 `v<n` 的旧信封升到当前版本，消费方永远只见最新 schema——P3a 已承载 `v` 字段，本期补升级机制）；定义 `decide`/`evolve` 聚合语义（命令 → decide → 事件 → evolve → 新状态），与日志层组装成完整会话内核。真实持久化适配器（照 P3a 端口契约）也归本期或随消费方落地。
+#### P3b · upcaster + decide/evolve 聚合语义 ✅ 已完成（feat/p3b-decide-evolve）
+`src/session/` 新增：`aggregate.js`（`defineAggregate` 纯聚合描述：decide/evolve 全纯函数、`reject` 结构化业务拒绝、`onUnknownEvent` 未知事件默认响亮 throw）、`upcaster.js`（`upcastEvent` 事件版本化：库拥有版本号、逐级 v→v+1 升级、缺升级函数/来自未来响亮 throw，消费方永远只见最新 schema）、`memory-snapshot-store.js`（快照端口内存实现，防御性深拷贝）、`aggregate-runtime.js`（`createAggregateRuntime`：execute = 锁串行→CAS append→读回折叠→滚动快照，load = 快照+尾部重放）。**append 路径唯一**：execute 复用 P3a `delivery.publish`，全库仅一条写日志路径。四条不变量（重放确定性含快照 present/absent/behind 三形态 / 拒绝无痕 / evolve 只见升级后事件 / execute 串行等价且 CAS 零冲突——去锁反证响亮 ConflictError）固定种子 property 测钉死；`reference/classroom-aggregate.ref.mjs` **整库首次三层（聚合+投递+传输）串跑最小课堂全链路**，含 v1→v2 事件演进。既有 110 测试零修改全绿，纯度门扩展至 56 项全 PASS。真实持久化适配器（照端口契约）仍留随消费方落地。
 
 ### P4 · defineMachine 转移表工具
 提供声明式状态机构造工具 `defineMachine`（转移表：states / events / guards / actions）。**词汇照抄 XState**（states/events/guards/actions/context），降低学习成本、便于未来对接生态，但实现保持零依赖、纯函数内核。

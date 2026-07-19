@@ -1,6 +1,6 @@
 # realtime_core · 对外接口契约
 
-> 本文件是 realtime_core 对外行为的**唯一事实**。当前为**孵化期骨架**：realtime_core 位于 `dev/`（试验区），尚无外部消费方。v0.1 的公共 API 起点 = **逐字继承 copycat 已验证实时内核**，P2 起在其上**向后兼容地扩展**（P2：interval 形态 / 顶替语义 / keyed registry / awaitIdle；P3a：会话内核之日志+游标投递层，见下）；**正式契约 P5 定稿**（semver v1.0、经 CR 迁入 `0/` 平台层时冻结）。在正式定稿前，下列导出符号清单描述"当前提供了什么"，不构成对外冻结承诺（draft）。
+> 本文件是 realtime_core 对外行为的**唯一事实**。当前为**孵化期骨架**：realtime_core 位于 `dev/`（试验区），尚无外部消费方。v0.1 的公共 API 起点 = **逐字继承 copycat 已验证实时内核**，P2 起在其上**向后兼容地扩展**（P2：interval 形态 / 顶替语义 / keyed registry / awaitIdle；P3a：会话内核之日志+游标投递层；P3b：decide/evolve 聚合语义 + 事件版本化 upcaster + 崩溃重放运行时，见下）；**正式契约 P5 定稿**（semver v1.0、经 CR 迁入 `0/` 平台层时冻结）。在正式定稿前，下列导出符号清单描述"当前提供了什么"，不构成对外冻结承诺（draft）。
 
 ## 契约索引声明（provides / consumes）
 
@@ -13,7 +13,7 @@ consumes: []   # 零依赖是卖点：内核不依赖任何平台契约或第三
 
 ## 版本与定稿状态
 
-- **v0.1（当前）**：copycat 实时内核逐字抽取 + P2/P3a 向后兼容扩展，孵化于 `dev/realtime_core/`。API 表面 = 下列各文件的导出符号，**未冻结**。
+- **v0.1（当前）**：copycat 实时内核逐字抽取 + P2/P3a/P3b 向后兼容扩展，孵化于 `dev/realtime_core/`。API 表面 = 下列各文件的导出符号，**未冻结**。
 - **P5（正式契约）**：semver v1.0、经 CR 迁 `0/` 平台层、补 SSE 参考适配器测试后，本契约定稿并启用冻结项标注。路线图见 `module_docs/rules.md`。
 
 ## v0.x 公共 API（copycat 实时内核 + P2/P3a 向后兼容扩展）
@@ -87,6 +87,42 @@ logStore = {
 
 > **验收锚点**：`reference/classroom-feed.ref.mjs` + 特征测试——teacher/student/parent 三组订阅同一流、独立进度、断线重连（仅凭 logStore 重建、从游标续读）。领域词只出现在 reference/。四条不变量（已确认序列=日志连续前缀 / seq 连续+CAS 唯一胜者 / 游标只前进 / 崩溃重建后仍成立）由 `session/log-cursors.property.test.mjs` 固定种子 property 测钉死。
 
+### P3b 扩展导出面（draft）：会话内核（下）——decide/evolve 聚合 + 事件版本化 + 崩溃重放
+
+"记账规则"层：命令经守卫判定产出事件（decide），事件折叠出状态（evolve），崩溃后快照+重放恢复，并落地**事件版本化**（旧信封经 upcaster 逐级升到当前版本再交 evolve）。新文件（`code/backend/src/session/`，均 draft）：
+
+| 文件 | 导出符号 | 性质 |
+|---|---|---|
+| `session/aggregate.js` | `defineAggregate({name, initial, decide, evolve, upcasters?, eventVersions?, onUnknownEvent?, schemaVersion?})`、`reject(code, detail?)`、`isReject(v)` | 纯聚合描述：decide/evolve 全纯函数；`reject` = 结构化业务拒绝（非 throw） |
+| `session/upcaster.js` | `upcastEvent(event, {upcasters, currentVersion})` | 纯事件版本升级（逐级 v→v+1；缺升级函数/来自未来 = 响亮 throw） |
+| `session/memory-snapshot-store.js` | `createMemorySnapshotStore()` | 快照存储端口内存参考实现（get/put，防御性深拷贝） |
+| `session/aggregate-runtime.js` | `createAggregateRuntime({aggregate, logStore, locks?, wakeup?, snapshotStore?, snapshotEvery?})` | 运行时：`execute`（锁串行 + CAS append + 快照）/ `load`（快照+尾部重放） |
+
+**聚合语义**：
+
+- `defineAggregate(spec)` → 冻结的**纯描述对象**（无可变状态、无 io）。`decide[cmdType](state, cmd, ctx) → events[] | reject(code)`；`evolve[evType](state, event) → newState`（纯折叠，禁 throw/副作用）。`ctx` 注入 clock/rng/actor（actor 库不解释，透传）。
+- `reject(code, detail?)`：结构化业务拒绝（非 throw）。**throw 只留给编程错误**：未知命令（decide 表无此 key）、decide 返回非数组非 reject、evolve 缺 handler。
+- `eventVersions: {type: n}` 声明每类事件的**当前版本**（缺省 1）；`upcasters: {type: {fromV: (ev)=>ev'}}` 声明升级函数。**库拥有版本号**——升级函数只变换 payload/形状，库强制盖 `v = fromV+1`（版本单调有硬保证，永不因忘 bump 而死循环）。
+- `evolve` 对未知事件类型：`onUnknownEvent: 'throw'|'ignore'`，**默认 throw**（响亮）。
+- `schemaVersion`（缺省 1）：聚合逻辑版本，随快照落盘；重建时快照 schema 不匹配 → 丢弃快照、从日志全量重建（保守）。
+
+**事件版本化**（本期验收重点）：append 时库给事件盖当前版本章；重放/投递读取时，`applyEvent` 自动把低版本信封经 upcasters 链**逐级**升到当前版本再交 evolve（v1→v2→v3 可链式）。**缺升级函数遇旧版本 = 响亮 throw**（禁静默）；事件 `v > 当前版本`（回滚到旧代码读新日志）= 响亮 throw。于是 decide/evolve **永远只见最新 schema**。
+
+**运行时**：
+
+```
+rt = createAggregateRuntime({ aggregate, logStore, locks?, wakeup?, snapshotStore?, snapshotEvery? })
+await rt.execute(streamId, command, ctx) -> { events, state } | { rejected: {code, detail} }
+rt.load(streamId) -> state          // 快照 + 尾部重放
+```
+
+- `execute` 全程在 `locks.withLock('stream:<id>')` 内（未注入 locks 则裸跑）：load → decide → append(CAS, `expectedLastSeq`=重放高水位) → 读回落盘信封折叠出新态 → 可选滚动落快照。**信箱串行是第一道防线，CAS 是第二道**；CAS 冲突 = 编程错/并发漏网 → **响亮 throw**（`ConflictError` 原样上抛，不静默重试）。
+- **append 路径唯一**：`execute` 不自写日志，**复用 P3a `delivery.publish`**（显式 `expectedLastSeq` 走严格 CAS + `wakeup.emit(streamId,'appended')`）——全库只有一条 append 路径，聚合层与投递层写日志语义逐字一致。`wakeup` 可选（未注入 = no-op，纯聚合场景无订阅者）。
+- `execute` 追加后**读回**刚落盘的信封，用与 `load` **完全相同**的折叠（upcast→evolve）推进状态——保证"execute 后的内存态"逐字等于"崩溃后从日志重建的状态"。
+- **快照**：`snapshotStore` 端口（`get(streamId)`/`put(streamId, {state, lastSeq, aggregateSchemaVersion})`）+ 内存参考实现（防御性深拷贝，state 须 structuredClone 可克隆）；`snapshotEvery`（缺省 50 事件）跨边界滚动落快照。重放 = 取快照 + `read(lastSeq 之后)` 逐条 upcast+evolve。
+
+> **验收锚点**：`reference/classroom-aggregate.ref.mjs` + 特征测试——最小课堂聚合（states idle/asking/awaiting-answer/closed；命令 push-question/submit-answer/close；含一次 v1→v2 事件演进），**整库第一次三层（聚合+投递+传输）串起来跑通全链路**（命令→事件→三组订阅各自唤醒收到）。领域词只出现在 reference/。四条不变量（重放确定性含快照 present/absent/behind 三形态 / 拒绝无痕 / evolve 只见升级后事件 / execute 串行等价且 CAS 零冲突）由 `session/aggregate.property.test.mjs` 固定种子 property 测钉死。
+
 ## 入口与路由
 
 - 无 HTTP/nginx 表面：realtime_core 是**库**（ESM 模块集），由消费方 `import`，不自带服务进程或路由。
@@ -121,3 +157,4 @@ logStore = {
 | 2026-07-19 | 无（dev 孵化，无 CR） | v0.1 骨架建立：copycat 实时内核逐字抽取，七文件导出符号登记，正式契约留待 P5 |
 | 2026-07-19 | 无（dev 孵化，无 CR） | P2 内核扩展（向后兼容）：新增 `PollMode`、`PollPhase.SUPERSEDED`、`POLL_TICK`/`SUPERSEDE` 事件、`ARM_INTERVAL`/`DISARM_INTERVAL` 动作；`initPoll(config)` 携带 mode/immediateFirstAttempt；`longPoll` 加 classify/registry/key/interval 注入；新增 `createPollRegistry()`、`awaitIdle()`。既有导出行为逐字不变（48 既有测试零修改全绿）。参考实现 + 特征测验收 block-9 两 poller。仍 draft，P5 定稿 |
 | 2026-07-19 | 无（dev 孵化，无 CR） | P3a 会话内核（上）：新增 `session/`——事件信封（`{streamId,seq,id,type,v,at,payload}`，`v` 版本字段即刻承载）、存储端口 + `createMemoryLogStore`、`ConflictError`（CAS）、`createDelivery`（publish/pull/ack/subscribe，subscribe 复用 P2 longPoll/wakeup 注入）。既有导出零改动（72 既有测试零修改全绿）。四不变量 property 测钉死。仍 draft，upcaster/decide-evolve 留 P3b，P5 定稿 |
+| 2026-07-19 | 无（dev 孵化，无 CR） | P3b 会话内核（下）：新增 `session/aggregate.js`（`defineAggregate`/`reject`/`isReject`）、`session/upcaster.js`（`upcastEvent` 事件版本化，缺升级函数/来自未来响亮 throw）、`session/memory-snapshot-store.js`（`createMemorySnapshotStore`）、`session/aggregate-runtime.js`（`createAggregateRuntime`：execute 锁串行+CAS+滚动快照 / load 快照+尾部重放）。**append 路径唯一**：execute 复用 P3a delivery.publish。既有导出零改动（110 既有测试零修改全绿）。四不变量（重放确定性/拒绝无痕/evolve 只见升级后事件/execute 串行）property 测钉死；`reference/classroom-aggregate.ref.mjs` 三层全链路自证。仍 draft，P4 defineMachine、P5 定稿 |
