@@ -1,0 +1,19 @@
+{
+  "name": "@aimergent/realtime-core",
+  "version": "1.0.1",
+  "description": "Domain-agnostic realtime/state-machine kernel (long-poll reducer, command dispatch, channel broadcast, keyed locks, session kernel, defineMachine). Zero runtime deps. Contract: module_docs/contract.md v1.0.0. Root packaging shim: source lives in code/backend/src/.",
+  "type": "module",
+  "exports": {
+    "./transport/*": "./code/backend/src/transport/*.js",
+    "./concurrency/*": "./code/backend/src/concurrency/*.js",
+    "./queue/*": "./code/backend/src/queue/*.js",
+    "./machine/*": "./code/backend/src/machine/*.js",
+    "./session/*": "./code/backend/src/session/*.js"
+  },
+  "files": [
+    "code/backend/src"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
