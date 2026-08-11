@@ -1,0 +1,24 @@
+# 精确文件豁免：仅允许记录本地只读特征化测试的历史来源。
+code/backend/characterization/package.json
+# L0 治理仓保存旧系统迁移雷点，且 gate 脚本本身包含被检字符串。
+ci/gates/run-gates.sh
+docs/0_problems_before_move/2026-07-14-t0-landmine-fixes.md
+docs/0_problems_before_move/landmine-master-list-2026-07-13.md
+docs/1 structure/README.md
+# staging 部署 handoff 记录旧仓只读拉取来源（治理文档，非迁移代码）。
+deploy/handoff-staging-testfixes.md
+# vendored TurboWarp 扩展 devlog（第三方构建产物，非本项目源码）。
+deploy/nginx/portal/turbowarp/extensions/stock-tycoon/DEVLOG.md
+# consulter 审核报告引用旧仓路径以复核 handoff（治理留痕）。
+CFO_agent/consulter/docs/findings/2026-07-19-staging-deploy-git-ification-review.md
+# consulter 报告记录 ai_cloze/ai_cad 部署排查中澄清的老仓路径事实（治理留痕）。
+CFO_agent/consulter/docs/findings/report.json
+CFO_agent/consulter/docs/worklog/2026-08-05-consulter-deploy-ai-cloze-ai-cad-staging.md
+# arbiter/consulter worklog 引用老仓路径以说明本次 staging 改动与生产老架构部署无关（治理留痕）。
+CFO_agent/arbiter/docs/worklog/2026-08-06-arbiter-spy-decrypt-staging-skip-machine-review.md
+CFO_agent/consulter/docs/worklog/2026-08-06-consulter-spy-decrypt-staging-skip-machine-review.md
+# arbiter/consulter worklog 记录真实题包来源路径，供后续核对（治理留痕）。
+CFO_agent/arbiter/docs/worklog/2026-08-06-arbiter-spy-decrypt-load-real-puzzles-drop-skip-flag.md
+CFO_agent/consulter/docs/worklog/2026-08-06-consulter-spy-decrypt-load-real-puzzles-drop-skip-flag.md
+# 生产数据迁移 runbook：内容就是「老架构 → 新架构」的搬迁步骤，必然引用老仓路径（治理文档）。
+deploy/runbooks/prod-data-migration.md
