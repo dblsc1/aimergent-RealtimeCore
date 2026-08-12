@@ -1,0 +1,2 @@
+# 精确目录豁免：该特征化套件必须读本机旧系统，GitHub runner 不伪造运行条件。
+code/backend/characterization

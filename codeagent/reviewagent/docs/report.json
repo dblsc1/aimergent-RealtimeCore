@@ -2,123 +2,66 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "reviewagent",
-  "task": "P5 契约正式化 + v1.0.0 + SSE 参考适配器 + 收债审核（feat/p5-contract-v1，v1.0.0 合并前末门）：contract.md 定稿 v1.0.0 冻结基线（35 导出符号+5 端口+15 不变量-测试互指表+semver 政策+遗产兼容面）、SSE 参考适配器实测三形态共用内核、收债（信封 id 去重/纯度门白名单闭环/ordering 补测）、README+version 1.0.0；契约期审核以文档-代码一致性为主战场",
-  "tier": "hard",
+  "task": "sync-ci-gates-review",
+  "tier": "simple",
   "status": "approved",
-  "summary": "八项全 PASS，verdict=approved（v1.0.0 合并前末门）。①兼容门：no-renames diff f497ac2..3777e36 下零个既有 *.test.mjs 被改（仅 2 新增测试 ordering.test.mjs/sse-adapter.ref.test.mjs + 生产 src/ 唯一改动 envelope.js 收债），串行独立重跑 201/201。②契约完备性（核心）：自写脚本独立比对（非复用 backend）——grep src 全部 `^export (function|const|class)` = 35 vs contract 表格首列符号 = 35，diff 空=PERFECT MATCH 35/35 零漂移；分 scope 计数自洽 16 文件·35 符号。深读 5 符号：initPoll/reduce/isTerminalPhase 亲跑 node-e（wakeup 默认 immediate=true/interval=false、非法 mode/未知事件 TypeError、终态吸收仅 DISCARD 逐字一致）、sealEnvelopes/upcastEvent 读源与契约一致。15 不变量锚点全存在，深读 I2/I6/I8/I13/I14/I15 确认测的确是该条。③SSE 实质成立：serveSse while 循环顺序复合多 poll 生命周期、每 settled→conn.send(frame)+ack、核心用例同 conn 连推 3 帧（游标 2→3→5）、6 测非单帧糊弄；src/ 一行未动（commit 47e73d7 仅触 reference/+rules.md 1 行）。④微任务窗口裁断：①P1 起既有=成立（engine.js/poll-machine.js 本 branch 零触碰、P5 仅入契；SUBSCRIBE/WAKEUP 不在 P2 新增符号清单）②timeoutMs 兜底准确=WAITING 恒发 ARM_TIMER(timeoutMs)（poll-machine L248 + engine L127）③延迟非丢失=事件留日志、下一生命周期 initial pull 补课（SSE 测#2 实证零丢失）、有界≤timeoutMs→可接受非阻断。⑤收债：id 去重 clock 传已取 at 逐字节等价（ids.js::genEventId 注入 clock:()=>at == 旧内联；201 绿+README ex2 实跑印证）；纯度门真闭环（⑮ 复检白名单 ids.js 本身跑同 5 项）；ordering 8 测钉死 seq→createdAt→round/哑参 assignMissing/maxEventSeq 计入无 type 事件不对称/null 崩溃；六项债三处文档（worklog/rules/report debt_ledger）一致无悬空。⑥README ex1/2/3 亲跑通、ex4 为 HTTP 示意 API 形状一致；package.json=1.0.0；未打 tag（git tag -l 空）。⑦铁律：≤500（最大 poll-machine.js 338）/零依赖（无 deps 字段）/copycat·0 未动（diff 全在本仓）/四文档一致/契约通读无自相矛盾。⑧留痕：backend report embedded-self-v2 全过（base f497ac2 为 P4 squash 后 main 任务起点、SELF→3777e36、changed_files 12 与 base..head no-renames diff 集合完全相等 LC_ALL=C 复核、tracked/clean、escalation=null、contract.touched=true 仅模块自身契约未触平台契约）；5 commit trailer 各有且仅一条 backend@dev/realtime_core+p5-contract-v1 合法；worklog 完整。变异自检 M1：向非白名单 session/upcaster.js 注入跨 scope import ../queue/ordering.js → 纯度门 66/0 变红 65/1 精确报『逃出 session/ 目录（跨层耦合）』→ git checkout 还原 porcelain 空 + 66/0 + 201/201 复绿。被审业务代码一行未改。分支未合 main、未打 tag，交合并门 + CFO 治理（tag/迁平台层）。",
+  "summary": "chore/sync-ci-gates 是 realtime_core 首次安装 CI 门禁：.github/workflows/ci.yml + 全部 6 个 ci/gates 文件 + ci/hooks/commit-msg 从无到有，与 L0 母本逐字节相同，已含 7 道门 + status 新枚举（self_checked）。豁免清单（legacy-path-exempt.txt/remote-test-exempt.txt/.gitleaks.toml）沿用 L0 默认版，其中若干条目引用的 L0/其它模块专属路径在本仓不存在——判断为不构成实际安全削弱（路径不存在，匹配恒假），予以接受，登记轻量文档债务供后续收紧（详见报告判断题一节）。diff 无越界，本地 run-gates.sh/run-tests.sh 全绿（含 201/201 单元测试），commit 归属合法。approved。",
   "git": {
     "protocol": "embedded-self-v2",
-    "branch": "feat/p5-contract-v1",
-    "base": "f497ac23928ea684179cea299d9980bb43e072c2",
+    "branch": "chore/sync-ci-gates",
+    "base": "e6d1808e9d833b8f07cff9e29c3693019b3b676b",
     "head": "SELF",
     "diff_mode": "contains",
     "changed_files": [
-      "review/reviewreport/2026-07-19-review-p5-contract-v1.md",
-      "module_docs/reviewlog.md",
-      "codeagent/reviewagent/docs/worklog/2026-07-19-reviewagent-p5-contract-v1-review.md",
-      "codeagent/reviewagent/docs/report.json"
+      "codeagent/reviewagent/docs/report.json",
+      "codeagent/reviewagent/docs/worklog/2026-08-12-reviewagent-sync-ci-gates-review.md",
+      "review/reviewreport/2026-08-12-sync-ci-gates-review.md",
+      "module_docs/reviewlog.md"
     ]
   },
   "review_target": {
-    "branch": "feat/p5-contract-v1",
-    "base": "f497ac23928ea684179cea299d9980bb43e072c2",
-    "head": "3777e3630445810cf5a742896995cfc75e478665",
+    "branch": "chore/sync-ci-gates",
+    "base": "e6d1808e9d833b8f07cff9e29c3693019b3b676b",
+    "head": "809cb3bba02276046d5a564096d13495f99cb3ab",
     "diff_mode": "exact",
     "changed_files": [
-      "README.md",
-      "code/backend/package.json",
-      "code/backend/reference/sse-adapter.ref.mjs",
-      "code/backend/reference/sse-adapter.ref.test.mjs",
-      "code/backend/src/queue/ordering.test.mjs",
-      "code/backend/src/session/envelope.js",
-      "codeagent/backend/docs/report.json",
-      "codeagent/backend/docs/worklog/2026-07-19-backend-p5-contract-v1.md",
-      "module_docs/contract.md",
-      "module_docs/handoff.md",
-      "module_docs/rules.md",
-      "review/reviewcode/check-kernel-purity.mjs"
+      ".github/workflows/ci.yml",
+      "ci/gates/.gitleaks.toml",
+      "ci/gates/agent-attribution-activation",
+      "ci/gates/check-report-schema.sh",
+      "ci/gates/legacy-path-exempt.txt",
+      "ci/gates/remote-test-exempt.txt",
+      "ci/gates/run-gates.sh",
+      "ci/gates/run-tests.sh",
+      "ci/hooks/commit-msg"
     ]
   },
-  "contract": { "touched": false, "which": [], "consumes": [] },
+  "contract": {
+    "touched": false,
+    "which": [],
+    "consumes": []
+  },
   "cross_module_impact": [],
   "escalation": null,
   "issues": [
     {
       "severity": "info",
-      "file": "codeagent/backend/docs/report.json",
-      "line": 31,
-      "归属": "backend",
-      "summary": "contract.touched=true 而 which 填模块自身契约 realtime-core-kernel@v1.0.0（明确注明未触 auth/llm/market_data 平台契约）。按 0/roles/report-schema.md 升级面语义，contract.touched 的 CFO 路由信号是平台契约变更；本次为 dev 孵化模块自身 draft→v1.0.0 正式化、无外部消费方、cross_module_impact=[]，不触发跨模块 reviewer 路由。填 true 但 which 已澄清范围，路由无害。仅标出供 CFO 归档时知悉：真正需 CFO 动作的是移交项（tag + 迁平台层），非跨模块契约协调。"
+      "file": "ci/gates/legacy-path-exempt.txt, ci/gates/remote-test-exempt.txt, ci/gates/.gitleaks.toml",
+      "line": null,
+      "归属": "process",
+      "summary": "首次安装的豁免清单是 L0 默认版，含 L0/其它模块专属条目（如 docs/0_problems_before_move/、deploy/nginx/portal/*、CFO_agent/、code/backend/characterization），这些路径在 realtime_core 不存在（git ls-files / ls 核实），故不构成实际安全削弱——门禁的路径豁免匹配对不存在的路径恒假，等价于该条豁免从未生效。判断：接受现状，不阻断本次门禁同步；建议后续（不必是本任务）由 realtime_core 的 arbiter 在 module_docs/rules.md 登记一条轻量文档债务，择机把这几条无关条目裁剪为本仓最小豁免集，纯粹是可读性/最小化卫生问题，非安全或功能缺陷（reviewagent 沙盒不含 module_docs/rules.md 写权限，故只登记建议，不越界代写）。"
     }
   ],
-  "compat_gate_check": {
-    "existing_test_files_unmodified": true,
-    "existing_pass": 187,
-    "new_pass": 14,
-    "total_serial_rerun": "201 pass / 0 fail / 0 skip",
-    "evidence": "git diff --no-renames --name-only f497ac2..3777e36 中无任何既有 *.test.mjs；新增仅 code/backend/src/queue/ordering.test.mjs（8）+ code/backend/reference/sse-adapter.ref.test.mjs（6）；生产 src/ 唯一改动 = session/envelope.js（收债 id 去重）。独立串行重跑 node --test = 201/201（既有 187 零改 + 新 14）"
-  },
-  "contract_completeness_check": {
-    "independent_symbol_diff": "自写脚本独立比对（不复用 backend 脚本）：grep -rhoE '^export (function|const|class) <name>' src（排除 *.test.）= 35 符号；grep '^| `<sym>' contract.md 表格首列 = 35 符号；diff = 空 → PERFECT MATCH 35/35，零遗漏零多余零漂移",
-    "scope_counts_self_consistent": "transport 4 文件·13 符号 + concurrency 1·4 + queue 2·4 + session 8·11 + machine 1·3 = 16 文件·35 符号，与契约头逐字一致",
-    "deep_read_symbols": [
-      { "symbol": "initPoll/reduce/isTerminalPhase", "method": "live node -e", "result": "wakeup 默认 mode=wakeup·immediate=true、interval 默认 immediate=false、非法 mode→TypeError、isTerminalPhase(resolved/init)=true/false、reduce 未知事件→TypeError、终态吸收→仅 DISCARD——全部与契约逐字一致" },
-      { "symbol": "sealEnvelopes", "method": "读源", "result": "四键白名单{type,v,id,payload}+三保留键{streamId,seq,at}拒绝、空/非对象/非法 v/id→TypeError、seq 从 lastSeq+1、Object.freeze——与契约一致" },
-      { "symbol": "upcastEvent", "method": "读源", "result": "逐级 v→v+1、库强制盖 v=from+1、来自未来/缺升级函数/返回非对象→响亮 throw——与契约一致" }
-    ],
-    "invariant_anchors": "15 条 I1-I15 锚点文件全部存在（poll-machine.property/extended.property、log-cursors.property、aggregate.property、define-machine.property + 3 reference ref.test）；深读 4 条：I2(CLEANUP 恰好一次 L90-101)、I6/I8(确认序列=连续前缀/游标单调 RangeError property①④⑤)、I13(execute 串行 property④真锁零冲突+property⑤去锁反证 ConflictError)、I14/I15(状态封闭 property①/终态吸收 property②)——测的确是该条不变量"
-  },
-  "sse_adapter_check": {
-    "verdict": "PASS — 实测成立无内核缺口，非单帧糊弄",
-    "detail": "serveSse while(!closed && conn.isOpen()) 循环顺序复合多 poll 生命周期，每个 delivery.subscribe settled→conn.send(formatSseFrame)+ack(游标前移)+pushes++，真用 conn port(send/isOpen)。6 测实测：核心用例同一 conn 连收 3 帧=3 完整生命周期（游标 2→3→5、id 行=批尾 seq）、跨周期零丢失、超时→心跳注释帧续推、断连静默零帧、重连从游标续读、conn 与 channels(WS) 同形状互换",
-    "src_untouched": "commit 47e73d7 per-commit diff 仅触 reference/（2 文件）+ rules.md 1 行，src/ 零触碰——『三形态共用内核零改动』diff 核实成立"
-  },
-  "microtask_window_ruling": {
-    "is_p1_preexisting": "是。engine.js 与 poll-machine.js 在 f497ac2..3777e36 零触碰（per-commit diff 核实），P5 仅把窗口写进契约；窗口机理=异步 ATTEMPT + 非缓存 wakeup（emit 不重放，端口义务）+ SUBSCRIBE 排在 initial attempt 之后（poll-machine L248 进 WAITING 才 SUBSCRIBE）皆 P1 内核既有；SUBSCRIBE/WAKEUP 不在 P2 新增符号清单，属 v0.1 抽取面",
-    "timeoutms_bound_accurate": "准确。进入 WAITING 恒发 [SUBSCRIBE, ARM_TIMER]（poll-machine L248），ARM_TIMER 以 timeoutMs 装一次性定时器（engine L127-128）→最坏等待被 timeoutMs 封顶",
-    "delay_not_loss_acceptable": "可接受（延迟非丢失，不阻断）。错过唤醒的事件仍留日志；下一生命周期 initial attempt 立即 pull（游标后积压立见）或长轮询客户端超时重询补课——SSE 测#2 实测跨周期靠 initial attempt 补课零丢失；属有界延迟≤timeoutMs 非数据丢失。保守『记录不修』（修=SUBSCRIBE 后补 attempt=改既有动作序列=违兼容门）成立"
-  },
-  "debt_repayment_check": {
-    "envelope_id_dedup": "PASS — envelope 缺省 id 改 genEventId({clock:()=>at, rng})；ids.js::genEventId=evt-${clock()}-${rng().toString(36).slice(2,8)}，注入 clock:()=>at 后与旧内联 evt-${at}-${rng().toString(36).slice(2,8)} 逐字节等价（rng 单次读、时间戳分量===信封 at）；既有测试全绿+README ex2 实跑生成 evt-1784450532508-ccqzdx 印证",
-    "purity_gate_closed_loop": "真闭环非放水口 — 白名单是具体文件路径（仅 queue/ids.js），⑮ 段把 ids.js 本身跑同 5 项严格检查，白名单不成盲区",
-    "mutation_self_check": { "injected": "src/session/upcaster.js 注入非白名单跨 scope import `import { orderedSessionEvents } from '../queue/ordering.js';`（ordering.js 不在白名单）", "result": "纯度门 66 PASS/0 FAIL → 变红 65 PASS/1 FAIL，精确报『session/upcaster.js: import「../queue/ordering.js」逃出 session/ 目录（跨层耦合）』", "reverted": "git checkout → git status --porcelain 空 → 纯度门复绿 66/0 → 全量测试复绿 201/201" },
-    "ordering_tests": "8 用例真钉死既有行为：排序键 seq→createdAt→round、哑参 assignMissing(true/false/缺省逐字一致)、null/空洞容忍、maxEventSeq(null) 保留崩溃 throw、投影跳过无 type 事件但 maxEventSeq 计入的既有不对称",
-    "six_debts_reconciled": "worklog『P5 处理标记项盘点』6 项 ↔ rules.md P5 节 ↔ report debt_ledger 三处一致：①id 去重✅ ②ordering 补测✅ ③符号中性化⏭移交 v2/迁平台层(与 187 零改兼容门硬冲突、契约标遗产兼容面冻结) ④真实持久化适配器⏭移交首个消费方 ⑤defineMachine YAGNI✅评估留 v1.0 外 ⑥maxEventSeq null 兜底✅评估保留崩溃行为入契冻结。无悬空项"
-  },
-  "readme_version_check": {
-    "examples_run": "README 示例 1/2/3 亲手 node 跑通：ex1 can=true/transition→working/closed→IllegalTransitionError；ex2 add+2→{n:2}/add-1→rejected must-be-positive 无痕/load→{n:2}；ex3 pull [hello]+游标前移到 1——与文档标注一致。ex4(longPoll) 为 HTTP handler 示意片段(依赖 req/res)，API 形状与实测 longPoll 签名一致，属合理示意非跑不通",
-    "version": "package.json version=1.0.0（描述同步更新为正式契约措辞）",
-    "no_tag": "PASS — git tag -l 空，未打 v1.0.0 tag；rules/handoff/report 均记 tag 由 CFO 合并后在 main 打"
-  },
-  "ironclad_check": {
-    "file_size": "PASS：src/ 生产文件最大 poll-machine.js 338 行，全 ≤500",
-    "zero_deps": "PASS：package.json 无 dependencies/devDependencies 字段",
-    "copycat_and_0_untouched": "PASS：分支 diff 全落在本仓 dev/realtime_core，copycat 与 0/ 为独立仓未触碰",
-    "docs_sync": "PASS：contract/rules/worklog/handoff/report.json 五处 201/187/66/35/5/15、微任务窗口、债务下落、tag 延迟交接相互一致无掉队（铁律 11）",
-    "contract_no_contradiction": "PASS：通读全文，scope 计数(16 文件·35 符号)逐节自洽；longPoll respond 键语义/ConflictError vs RangeError 分界/枚举扩展=minor 与 reduce 拒未知事件/信封只加不改与升级链 throw 语义交叉引用一致，未见矛盾"
-  },
-  "留痕_check": {
-    "backend_report_embedded_self_v2": "PASS：protocol embedded-self-v2；base f497ac2=P4 squash 后 main 任务起点(非 feature-only 中间提交)；SELF→3777e36(git log -1 --format=%H -- codeagent/backend/docs/report.json)；changed_files 12 与 base..head no-renames diff 集合完全相等(LC_ALL=C sort 复核 12/12)；tracked 且 porcelain 对 report.json 空",
-    "commit_trailers": "PASS：5 commit(ca57509/47e73d7/6f1df6e/cc6bc6f/3777e36)各有且仅一条 Agent-Attribution: backend@dev/realtime_core+p5-contract-v1，三段小写 slug 合法(role=backend/module=dev/realtime_core(/ 分层合法)/task=p5-contract-v1)",
-    "worklog": "PASS：2026-07-19-backend-p5-contract-v1.md 按 commit 叙事、SSE 诚实结论、决策与偏离(符号中性化让位/locks 单例/范围切割)、P5 处理标记项 6 项盘点、数字自检门齐备，与代码测试一致"
-  },
   "scripts": [
-    { "name": "node --test --test-concurrency=1 (串行全量独立重跑)", "result": "201 pass / 0 fail / 0 skip" },
-    { "name": "独立 35/35 符号比对：diff <(grep src export) <(grep contract 表格)", "result": "空 = PERFECT MATCH 35/35" },
-    { "name": "node -e initPoll/reduce/isTerminalPhase live", "result": "6 项行为与契约逐字一致" },
-    { "name": "node README ex1/2/3", "result": "全部与文档标注一致（ex2 生成 evt-<clock>-<rand36> 印证 id 去重）" },
-    { "name": "check-kernel-purity.mjs (清洁基线)", "result": "66 PASS / 0 FAIL（transport 16 + session 40 + machine 5 + 白名单闭环 5）" },
-    { "name": "变异自检 M1：session/upcaster.js 注入非白名单跨 scope import", "result": "66/0 → 65/1 精确报越域 → git checkout 还原 porcelain 空 → 66/0 + 201/201 复绿" },
-    { "name": "diff <(git diff --no-renames --name-only f497ac2..3777e36 | LC_ALL=C sort) <(report.changed_files | LC_ALL=C sort)", "result": "空 = 集合完全相等 12/12" },
-    { "name": "git log -1 --format=%H -- codeagent/backend/docs/report.json", "result": "3777e36 = SELF 解析" },
-    { "name": "git tag -l", "result": "空（未打 tag，正确）" },
-    { "name": "for c in 5 commits: git show -s --format=%b | grep Agent-Attribution", "result": "各唯一合法 backend@dev/realtime_core+p5-contract-v1" }
-  ],
-  "handover_to_cfo": [
-    "合并后在 main squash commit 打 v1.0.0 tag（本分支未打，git tag -l 空核实）；squash 后以旧 main SHA 为 base、新 squash SHA 为 head 复验 embedded-self-v2",
-    "迁 0/ 平台层治理流程：CR + 0/AGENTS.md 顶层结构 + CONTRACTS-INDEX 登记 + 模块模式切 governed（需用户逐字确认）"
+    {
+      "name": "gate-review-verify.sh（15仓统一批量核验：diff范围/exact-set/逐字节比对母本(整文件非仅hunk)/豁免清单未污染/self_checked+bash -n语法/run-gates.sh/run-tests.sh/commit归属trailer，本仓 batch=R）",
+      "result": "pass"
+    },
+    {
+      "name": "gate-effectiveness-test.sh（抽验新门禁有效性：构造与base不同的非法status，用git commit-tree在内存中合成一次性commit，不touch工作区/索引/分支ref，跑check-report-schema.sh确认非0退出；含正控确认合法值放行）",
+      "result": "pass"
+    }
   ],
   "tests_verified": true,
-  "contract_conformance": true,
-  "verdict": "approved"
+  "contract_conformance": true
 }

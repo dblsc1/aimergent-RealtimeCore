@@ -1,0 +1,43 @@
+# gitleaks 配置 · 平台级密钥扫描（每模块 CI 引用）
+title = "aimergent secret scan"
+
+[extend]
+useDefault = true
+
+# 已泄露、必须永久拦截进 git 的具体值
+[[rules]]
+id = "sanhu-leaked-token"
+description = "三狐行情已泄露 token（已作废，禁止再进 git）"
+regex = '''4f7e8640790770fb74e0f178e20ac34d'''
+
+[[rules]]
+id = "weak-default-secrets"
+description = "弱默认值占位符（禁作为配置默认值提交）"
+regex = '''(admin888|change-this-to-a-random-string|dev-session-secret)'''
+
+[allowlist]
+description = "文档/规范里作为反例引用这些值是允许的（雷点表、gitleaks 配置本身）"
+regexes = [
+  # auth release-readiness 的公开 Git commit；PR #6 曾被 generic-api-key 误报。
+  '''b1eaacd292391ff90c0d9feaae23a5b494785229''',
+]
+paths = [
+  '''0/docs/.*''',
+  '''docs/0_problems_before_move/.*''',
+  '''.*/rules\.md''',
+  '''.*/reviewcode/.*''',
+  '''.*gitleaks\.toml''',
+  '''ci/gates/run-gates\.sh''',
+  '''.*/AGENTS\.md''',
+  # agent 叙事文档（worklog / reviewreport）可作为反例引用已泄露/弱默认值——同 rules.md/AGENTS.md
+  # 豁免意图。前向 redact 抹不掉历史 commit diff，PR 事件扫全历史故按路径豁免（k10 W1 实证）。
+  # 真密钥面（code/config/.env）仍全量受扫，不放宽。
+  '''.*/docs/worklog/.*''',
+  '''.*/reviewreport/.*''',
+  # 第三方 vendored TurboWarp 构建产物（editor / app 的 minified bundle）：高熵变量
+  # 频繁误报 generic-api-key（如 vendors~…player.js 的 parentKeyNavigationHandler）。
+  # 用户 2026-07-19 明确授权仅豁免这两个 vendored 构建目录；我们自己的 turbowarp/extensions、
+  # super-admin、portal index.html 仍受扫。真密钥只在 runtime/secrets/staging.env（从不进 git）。
+  '''deploy/nginx/portal/turbowarp-editor/.*''',
+  '''deploy/nginx/portal/turbowarp-app/.*''',
+]
