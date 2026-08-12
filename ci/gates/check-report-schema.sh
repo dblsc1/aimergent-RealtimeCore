@@ -56,8 +56,21 @@ validate_common() {
     .role == $role and
     (.task | type == "string" and length > 0) and
     (.tier == "simple" or .tier == "normal" or .tier == "hard") and
-    (.status == "approved" or .status == "rejected" or
-      .status == "blocked" or .status == "escalate") and
+    # status 按角色分档。原先全角色只认这四个 verdict 词，而 backend/frontend
+    # 这类 worker 自称其中任何一个都近似「自我批准」——他们没有诚实可写的值。
+    # 实证：ai_cad 的 backend 报告三周内两次写成 self_checked（更诚实但非法），
+    # 两次都要 cfo-arbiter 伸手改别人的文件才能过门（2026-08-05 2a134b8、
+    # 2026-08-12 1a4434a）。规则不给诚实选项，就会持续制造这种越界修补。
+    # 故 worker 角色额外允许 self_checked =「我自检通过，等独立审核」。
+    # verdict 角色（reviewagent/arbiter/consulter）不给这个值——他们的职责就是下判断。
+    # 兼容：worker 仍可用原四值，既有报告不受影响；新报告推荐 self_checked。
+    (if $role == "backend" or $role == "frontend" then
+       (.status == "self_checked" or .status == "approved" or
+        .status == "rejected" or .status == "blocked" or .status == "escalate")
+     else
+       (.status == "approved" or .status == "rejected" or
+        .status == "blocked" or .status == "escalate")
+     end) and
     (.summary | type == "string" and length > 0) and
     .git.protocol == "embedded-self-v2" and
     (.git.branch | type == "string" and length > 0) and
