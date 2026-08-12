@@ -1,6 +1,7 @@
 # realtime_core · 审核结论台账
 
 > 一行一条，仅 reviewagent 追加。详细报告在 `review/reviewreport/`。
+| 2026-08-12 | governance-promotion | rejected | review/reviewreport/2026-08-12-governance-promotion-review.md | exact `9061648..d438e7a`；转正/消费证据成立，但 P5 “首个消费方”持久化路线图与现状矛盾。 |
 
 | 日期 | 任务 | verdict | 报告 | 备注 |
 |---|---|---|---|---|
