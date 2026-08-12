@@ -1,0 +1,54 @@
+{
+  "schema_version": 2,
+  "module": "realtime_core",
+  "role": "arbiter",
+  "task": "governance-promotion：核实平台层转正三项(物理迁移/CONTRACTS-INDEX/CI白名单)是否真的完成，并把 contract.md/rules.md/handoff.md 的治理状态从「孵化于dev/、待转正」同步为「已转正governed」，写明触发条件证据、受治理规则(契约冻结+变更走CR)与实查消费方清单；不改 code/、review/",
+  "tier": "normal",
+  "status": "approved",
+  "summary": "独立核实（不直接采信既有债务复审报告，自己重新 grep/git log/git show）：转正三项全部属实、证据具体到 commit/文件/行号——物理迁移（`0/realtime_core/`存在，`dev/realtime_core/`已不存在）、CONTRACTS-INDEX（`0/deploy/CONTRACTS-INDEX.md` 模块矩阵L13+反查表L33）、CI白名单（`install-ci.sh:26,62`/`merge-to-main.sh:18`/`repo-status.sh:136`），均来自 `0/` 仓 commit `e19d903`(PR#27) + `86d3057`(PR#28)，2026-07-20，consulter 独立审核 APPROVED。消费方清单实查（非契约文本自称）：唯一消费方 `functions/copycat`（git tag 固定 `v1.0.1`），实际只消费 `transport/`（`poll-machine`/`dispatch`/`engine`/`channels`，经 `library.js` 转发+`createPollRegistry`在`home-realtime-wiring.js`实用）；`session/`（`sqlite-log-store.js`）已写但未接入生产组合根（grep确认`app.js`及其余src/无import）；`machine/`(defineMachine)全仓零命中未消费。三份 module_docs 治理状态措辞同步为 governed：contract.md 治理状态段落改写+新增「治理与变更控制」节（契约冻结/CR流程/消费方清单表）+变更记录加行；rules.md 工作模式段落改写+跨仓依赖机制更新+P5路线图移交项补✅避免同文件自相矛盾；handoff.md 一句话摘要与路线图结尾段同步。未发现转正本身有缺口，任务性质未变为「先补完转正」。发现两项不在本次写域内的问题已如实记录未擅自改：①copycat自己contract.md:26声称消费defineMachine但代码零命中（copycat侧契约措辞问题）；②`0/deploy/CONTRACTS-INDEX.md:4`头部说明句仍未列realtime_core（CFO维护范围，consulter已记录非阻断待办）。未改 code/、review/。",
+  "git": {
+    "protocol": "embedded-self-v2",
+    "branch": "chore/governance-promotion",
+    "base": "9061648118fb3f94b27226970b2c119d434a059d",
+    "head": "SELF",
+    "diff_mode": "contains",
+    "changed_files": [
+      "module_docs/contract.md",
+      "module_docs/rules.md",
+      "module_docs/handoff.md",
+      "codeagent/arbiter/docs/worklog/2026-08-12-arbiter-governance-promotion.md",
+      "codeagent/arbiter/docs/WorkIterationDiary/governance-promotion/arbiter.jsonl",
+      "codeagent/arbiter/docs/report.json"
+    ]
+  },
+  "contract": {
+    "touched": true,
+    "which": ["realtime-core-kernel@v1.0.0（治理状态段落改写+新增「治理与变更控制」节：契约冻结定义、CR流程、消费方清单表；未改动任何导出符号签名/端口义务/不变量承诺表本体，非 API 面变更）"],
+    "consumes": []
+  },
+  "cross_module_impact": [
+    "functions/copycat（唯一已核实消费方；本次未改动 copycat 任何文件/代码，只在 realtime_core 侧正式登记消费关系与治理规则；今后 realtime_core 契约变更需先走 CR 并评估对 copycat 的影响面——这条规则本次才正式生效，之前是真空）"
+  ],
+  "escalation": null,
+  "self_check": {
+    "code_touched": false,
+    "review_touched": false,
+    "detail": "本任务只改 module_docs/ 与 codeagent/arbiter/docs/，未触碰 code/、review/；check-kernel-purity.mjs 与既有 201 个 node:test 用例的覆盖面（code/backend/src|reference）未受影响，未重跑（无改动面，跑了也应是既有结果）。run-gates.sh 结果见下方 gates 字段与 worklog。"
+  },
+  "gates": {
+    "cmd": "bash ci/gates/run-gates.sh",
+    "result": "见 worklog 末尾自检小节；提交前已在 worktree 内执行"
+  },
+  "findings_not_in_scope": [
+    {
+      "what": "functions/copycat 自己 module_docs/contract.md:26 声称消费 defineMachine（\"owner-key 顶替/defineMachine（Step-5 R1 起消费）\"），但对 copycat 全仓 grep defineMachine/realtime-core/machine 零命中",
+      "why_not_fixed": "这是 copycat 模块自己的契约文本，不在本次 realtime_core 任务的写域内，未碰 copycat 任何文件",
+      "recommend": "知会 copycat 模块 arbiter 核实并订正 contract.md 措辞"
+    },
+    {
+      "what": "0/deploy/CONTRACTS-INDEX.md:4 头部说明句\"本索引聚合已迁完的 auth、llm、market_data、stock、spy\"仍未把 realtime_core 加进列举（模块矩阵表和反查表本身都已正确收录 realtime_core，只是这句概括性开场白没扩写）",
+      "why_not_fixed": "CONTRACTS-INDEX.md 属 CFO 维护范围，不在本模块 arbiter 写域内",
+      "recommend": "consulter 已于 2026-07-20 审核 PR#27 时记录为非阻断待办，留 CFO 收尾时顺手扩写"
+    }
+  ]
+}

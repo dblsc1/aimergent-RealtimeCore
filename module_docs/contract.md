@@ -2,7 +2,7 @@
 
 > 本文件是 realtime_core 对外行为的**唯一事实**。自 P5 起为**正式契约**：下列公共 API 面、端口契约与不变量承诺表构成 semver v1.0.0 的冻结基线——破坏任何一项 = major。realtime_core 是**领域无关的实时/状态机内核库**（纯 ESM、零 runtime 依赖、无服务进程），由消费方 `import` 使用。
 >
-> 治理状态：模块当前孵化于 `dev/realtime_core/`（lightweight）。`v1.0.0` git tag 由 CFO 在合并后的 main squash commit 上打（本仓不自打 tag）；"迁入 `0/` 平台层"（CR、`0/AGENTS.md` 顶层结构、CONTRACTS-INDEX 登记）**待 CFO 治理流程**，不属本契约文件的职权。
+> 治理状态：**已转正为 `0/` 平台层受治理模块（governed），2026-07-20 生效**。rules.md 原定的两个升级触发条件（"出现第一个外部消费方，或经 CR 迁入 `0/` 平台层"）均已满足且经本次复核确认落地：物理迁移（`/srv/aimergent/0/realtime_core/`，`dev/realtime_core/` 已不存在）、`0/deploy/CONTRACTS-INDEX.md` 登记（模块矩阵 L13 + 反查表 L33）、CI 白名单（`0/ci/install-ci.sh:26,62`、`0/ci/merge-to-main.sh:18`、`0/ci/repo-status.sh:136`）、`0/AGENTS.md` 顶层结构均已完成（commit `e19d903` PR#27 + `86d3057` PR#28，2026-07-20，consulter 独立审核 `APPROVED`——`0/CFO_agent/consulter/docs/findings/2026-07-20-realtime-core-promotion-review.md`）；首个外部消费方 `functions/copycat` 已通过 git tag（当前 `v1.0.1`）真实消费。`v1.0.0`/`v1.0.1` 两枚 tag 均已在 main 分支历史上打好。受治理后的具体规则、证据明细与消费方清单见下方"治理与变更控制"节。
 
 ## 契约索引声明（provides / consumes）
 
@@ -258,9 +258,19 @@ send(payload: string) → void        isOpen() → boolean
 - **数据与存储**：库不拥有持久化数据；日志/游标/快照只有内存参考实现，真实数据落消费方名下（铁律 7）。无 data root、无备份/清理需求。
 - **配置与密钥**：无 env/密钥表面。
 
-## 跨仓依赖机制
+## 治理与变更控制（governed 模式，2026-07-20 起生效）
 
-- 消费方引用 realtime_core **用 git tag 固定版本**；`v1.0.0` 起正式启用（tag 由 CFO 合并后在 main squash commit 上打）。
+- **契约冻结**：本文件"公共 API 面"全部导出符号的签名与语义、"端口契约"五端口形状与义务、"不变量承诺表"15 条不变量，是 v1.0.0 冻结基线（定义见"版本与 semver 政策"）。
+- **变更走 CR**：任何改变本文件签名/语义/义务/承诺的改动（不论落地后是 major/minor/patch）——动手前必须先停、写 CR 到 `0/deploy/coordination/requests/` 交项目 arbiter/CFO 裁决，批准后才能先改本文件、再改代码（对齐 `0/AGENTS.md` 铁律4「契约至上」与本模块 `AGENTS.md`「接口纪律」）。不触碰本文件签名/语义的内部重构、测试、文档改动，仍走模块自己的完整治理模式工作流（arbiter 开单 → 实现+自测 → reviewagent 审核 → `merge-to-main.sh`），不须逐次单开 CR。
+- **消费方清单**（供 CR 评审时评估影响面；随消费关系变化由 arbiter 更新，须与 `0/deploy/CONTRACTS-INDEX.md` 反查表保持一致）：
+
+  | 消费方 | 引用方式 | 已核实的实际消费范围 |
+  |---|---|---|
+  | `functions/copycat` | git 依赖固定 tag，当前 `v1.0.1`（`code/backend/package.json`） | **`transport/`**：`poll-machine`/`dispatch`/`engine`/`channels` 四文件经 `src/services/realtime/library.js` 逐符号转发；`createPollRegistry` 用于 F2 presence 长轮询 owner-key 顶替（`src/application/home/home-realtime-wiring.js`）；F3 观众席对话跟看等长轮询端点同样走 `library.js` 转发的 `longPoll`。**`session/`**：`src/data/sqlite-log-store.js` 已实现 logStore 端口的 SQLite 适配器，但未接入生产组合根（`app.js` 及其余 `src/` 无 import，仅测试文件引用自己），是否/何时启用移交 copycat Step-5 R3b 决定。**`machine/`（`defineMachine`）**：全仓 grep 零命中，当前未消费。 |
+
+  未发现除 `functions/copycat` 外的第二个消费方（已对 `0/functions/`、`0/web_modules/` 全量搜索 `@aimergent/realtime-core` 与 `aimergent-RealtimeCore`，排除 `.worktrees/`、`node_modules/` 后无其它命中）。
+
+- **消费方引用机制（P1 起不变）**：git tag 固定版本；`v1.0.0` 起正式启用；tag 由 CFO 在合并后的 main squash commit 上打（本仓不自打 tag）。
 
 ## 变更记录
 
@@ -272,3 +282,4 @@ send(payload: string) → void        isOpen() → boolean
 | 2026-07-19 | 无（dev 孵化，无 CR） | P3b 会话内核（下）：`defineAggregate`/`reject`/`isReject`、`upcastEvent`、`createMemorySnapshotStore`、`createAggregateRuntime`（append 路径唯一：复用 delivery.publish）。既有 110 测试零修改全绿，四不变量 property 钉死 |
 | 2026-07-19 | 无（dev 孵化，无 CR） | P4 defineMachine 声明式转移表：平表 + 纯谓词守卫 + 定义期全面校验。既有 153 测试零修改全绿，两不变量 property 钉死，纯度门 56→61 |
 | 2026-07-19 | 无（dev 孵化，无 CR） | **P5 契约正式化（本版）**：draft 全部转正 → v1.0.0 冻结基线（35 导出符号 · 5 端口 · 15 条不变量承诺表与测试互指）；semver 政策 + 信封"只加不改" + 升级链规则单列；遗产兼容面（queue/ + session·skill lock keys）标注冻结、中性化移交 v2/迁平台层；SSE 参考适配器实测三形态共用内核（`reference/sse-adapter.ref.mjs`）；收债：信封 id 去重到 `queue/ids.js`（纯度门白名单闭环 61→66）、`ordering.js` 补 8 专属测试；`longPoll` 微任务窗口（timeout 兜底）如实入契。既有 187 测试零修改全绿（201/201 总）。tag `v1.0.0` 待 CFO 于 main 打；迁平台层待 CFO 治理流程 |
+| 2026-08-12 | 无（module_docs 治理状态文档同步；不改变 API 面/端口契约/不变量，不触发新 CR） | **治理模式正式声明为 governed**：`0/` 平台层转正的 L0 doc-sync 已于 2026-07-20 完成（PR #27 `e19d903` 物理迁移+CONTRACTS-INDEX+`repo-status.sh`；PR #28 `86d3057` 补 `install-ci.sh`/`merge-to-main.sh` 白名单；consulter 独立审核 APPROVED），但本文件三周未同步"治理状态"措辞——本次补齐：治理状态段落改写为 governed + 证据；新增"治理与变更控制"节（契约冻结 + CR 流程 + 消费方清单，唯一已核实消费方 `functions/copycat`，`session/`/`machine/` 端口消费现状一并核实记录）。分支 `chore/governance-promotion` |

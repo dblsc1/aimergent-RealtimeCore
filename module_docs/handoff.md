@@ -4,7 +4,7 @@
 
 ## 一句话
 
-realtime_core 是**领域无关的实时/状态机内核库**（纯 ESM、零 runtime 依赖），孵化于 `dev/`。对外提供：long-poll 生命周期纯 reducer（`poll-machine.js`）+ 副作用引擎壳（`engine.js`）+ 命令分发 + 频道广播 + keyed 串行锁 + **完整会话内核（`session/`）：P3a 事件日志+游标投递层，P3b decide/evolve 聚合语义 + 事件版本化 upcaster + 崩溃重放运行时** + **声明式状态机工具（`machine/`）：P4 defineMachine 平表转移表 + 定义期全面校验（decide 内部合法转移判定的可选辅助）**。不依赖任何平台契约或第三方包（零依赖是卖点）。**P5 起契约已正式化为 v1.0.0 冻结基线**（35 导出符号 · 5 端口 · 15 条不变量承诺表，全部与测试互指——见 `module_docs/contract.md`）；`v1.0.0` tag 由 CFO 合并后在 main 打，迁 `0/` 平台层待 CFO 治理流程。仓根 `README.md` 是一页快速上手。
+realtime_core 是**领域无关的实时/状态机内核库**（纯 ESM、零 runtime 依赖），现为 **`0/` 平台层受治理模块（governed，2026-07-20 起）**，仓根在 `/srv/aimergent/0/realtime_core/`。对外提供：long-poll 生命周期纯 reducer（`poll-machine.js`）+ 副作用引擎壳（`engine.js`）+ 命令分发 + 频道广播 + keyed 串行锁 + **完整会话内核（`session/`）：P3a 事件日志+游标投递层，P3b decide/evolve 聚合语义 + 事件版本化 upcaster + 崩溃重放运行时** + **声明式状态机工具（`machine/`）：P4 defineMachine 平表转移表 + 定义期全面校验（decide 内部合法转移判定的可选辅助）**。不依赖任何平台契约或第三方包（零依赖是卖点）。**P5 起契约已正式化为 v1.0.0 冻结基线**（35 导出符号 · 5 端口 · 15 条不变量承诺表，全部与测试互指——见 `module_docs/contract.md`）；`v1.0.0`/`v1.0.1` 两枚 tag 均已由 CFO 在 main 打好。**唯一已核实消费方**：`functions/copycat`（git tag 固定 `v1.0.1`，实际消费 `transport/` 层——`session/`/`machine/` 端口目前未被消费方接入生产，详见 contract.md「治理与变更控制」节消费方清单）。仓根 `README.md` 是一页快速上手。
 
 ## 怎么跑 / 怎么测
 
@@ -33,4 +33,4 @@ realtime_core 是**领域无关的实时/状态机内核库**（纯 ESM、零 ru
 - **微时序适配**（参考实现）：copycat block-9 的 attempt 在 interval 回调内**同步**结算；本内核经 attempt→Promise→ATTEMPT_RESULT 事件，结算落在 tick 后一个微任务。观测层行为一致，特征测试逐 tick 步进 + flush 微任务。
 - **微任务窗口（契约已如实入契）**：wakeup 形态下 publish 落在 initial attempt（已 pull 空）与 SUBSCRIBE 生效之间的微任务窗口时，本生命周期不再主动 attempt——延迟到 TIMEOUT 或下一生命周期 initial pull 可见（上限 timeoutMs）。P1 起即有、非 SSE 特有；消费方不得假设"publish 后必即时唤醒"。
 - **技术债（P5 收账后的余额）**：✅已清偿——信封 id 去重（envelope 复用 `queue/ids.js::genEventId`，纯度门白名单闭环）、`ordering.js` 补 8 专属测试。⏭移交——**符号中性化**（`sessionLockKey`/`skillLockKey`/`orderedSessionEvents`/`genTurnId` 等遗产兼容面，与"187 零修改"兼容门硬冲突，冻结如现状、v2/迁平台层专项）；**真实持久化适配器**（随首个消费方）；**defineMachine YAGNI 项**（已评估：明确留在 v1.0 之外，contract 非目标节冻结）。详见 `module_docs/rules.md` P5 节。
-- **路线图**：P1–P4 全部落地；**P5 库内收尾已完成**（正式契约 v1.0.0、SSE 参考适配器、收债、README、version 1.0.0）。**移交 CFO 的两件事**：①合并后在 main squash commit 打 `v1.0.0` tag；②迁 `0/` 平台层治理流程（CR + `0/AGENTS.md` 顶层结构 + CONTRACTS-INDEX + 模式切 governed，需用户确认）。详见 `module_docs/rules.md`。
+- **路线图**：P1–P4 全部落地；**P5 库内收尾已完成**（正式契约 v1.0.0、SSE 参考适配器、收债、README、version 1.0.0）。**移交 CFO 的两件事均已完成**：①`v1.0.0`/`v1.0.1` 两枚 tag 已在合并后的 main squash commit 上打好；②迁 `0/` 平台层治理流程已于 2026-07-20 完成（CR + `0/AGENTS.md` 顶层结构 + CONTRACTS-INDEX + CI 白名单，PR #27/#28，consulter 独立审核 APPROVED），模式已正式切 `governed`（2026-08-12 本模块三份 module_docs 补齐"治理状态"措辞同步，分支 `chore/governance-promotion`）。详见 `module_docs/rules.md`「工作模式」与 `module_docs/contract.md`「治理与变更控制」。

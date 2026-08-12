@@ -4,8 +4,14 @@
 
 ## 工作模式
 
-- 模式：`lightweight`（孵化于 `dev/`，尚无外部消费方；P5 迁 `0/` 平台层时升级为 `governed`）。
-- 升级条件：出现第一个外部消费方，或经 CR 迁入 `0/` 平台层——届时切 `governed`，契约冻结、变更走 CR。
+- 模式：**`governed`**（2026-07-20 起，从 `lightweight` 正式切换；2026-08-12 本次任务补齐三份 module_docs 的措辞同步，模式切换本身早已落地，非本次新发生）。
+- 原定两个升级条件回顾（均已满足，经本次复核逐项核实证据）：
+  1. **出现第一个外部消费方**：`functions/copycat` 已通过 git tag（当前 `v1.0.1`）真实消费 `transport/` 层——`code/backend/package.json` 固定依赖，`src/services/realtime/library.js` 逐符号转发，详见 `contract.md`「治理与变更控制」节的消费方清单。
+  2. **经 CR 迁入 `0/` 平台层**：L0 doc-sync 已于 2026-07-20 完成（`0/` 仓 commit `e19d903` PR#27 + `86d3057` PR#28，consulter 独立审核 `APPROVED`，见 `0/CFO_agent/consulter/docs/findings/2026-07-20-realtime-core-promotion-review.md`），三项转正证据：
+     - 物理迁移：仓已在 `/srv/aimergent/0/realtime_core/`（`/srv/aimergent/dev/realtime_core/` 已不存在，`find` 确认）。
+     - `0/deploy/CONTRACTS-INDEX.md`：模块矩阵第 13 行 + 反查表第 33 行均已登记本模块。
+     - CI 白名单：`0/ci/repo-status.sh:136`（PR#27）、`0/ci/install-ci.sh:26,62` 与 `0/ci/merge-to-main.sh:18`（PR#28）均已放行 `0/realtime_core` 走 L1 治理路径；`0/AGENTS.md` 顶层结构、`0/docs/1 structure/README.md`、`0/docs/manual/README.md` 均已列出本模块。
+- **governed 模式规则**：契约冻结（`module_docs/contract.md` 是唯一事实，破坏性改动 = major）；**任何改变对外行为的改动先停、写 CR 交项目 arbiter/CFO，批准后先改 `contract.md` 再改代码**（`AGENTS.md`「接口纪律」+ 项目铁律4「契约至上」，具体流程见 `contract.md`「治理与变更控制」节）；本模块继续走"完整治理模式"工作流（模块根 `AGENTS.md`「完整治理模式」一节）——arbiter 开单 → 实现+自测 → reviewagent 审核 → `merge-to-main.sh` 合 main。此前 lightweight 模式"无需 CFO/独立 reviewagent/worktree/CONTRACTS-INDEX"的豁免自本次切换起失效。
 
 ## 技术与目录
 
@@ -16,7 +22,8 @@
 
 ## 跨仓依赖机制
 
-- 未来消费方引用 realtime_core：**用 git tag 固定版本**（P1 决策 3）。P5 契约已定稿 v1.0.0；`v1.0.0` tag 由 CFO 在合并后的 main squash commit 上打（打完即正式启用本机制）。
+- 消费方引用 realtime_core：**用 git tag 固定版本**（P1 决策 3）。机制自 v1.0.0 起正式启用；`v1.0.0`（2026-07-19）与 `v1.0.1`（2026-07-20，仅补仓根 `package.json` exports map 使库可作 git 依赖安装，无 API 变化，属 patch）两枚 tag 均已由 CFO 在合并后的 main squash commit 上打（本仓不自打 tag，`git for-each-ref refs/tags` 可查）。
+- 当前唯一已核实消费方：`functions/copycat`（`code/backend/package.json` 固定 `#v1.0.1`）。消费方清单与实际消费范围以 `contract.md`「治理与变更控制」节为准，随消费关系变化时两处同步更新。
 
 ## 启动与自检
 
@@ -52,7 +59,7 @@
 
 ### P5 · 正式契约 + semver v1.0 + 迁平台层 ◐ 库内部分已完成（feat/p5-contract-v1）
 **已完成（本分支）**：`module_docs/contract.md` 定稿为 **v1.0.0 正式契约**（35 导出符号 · 5 端口 · 15 条不变量承诺表与测试互指、semver 政策、信封只加不改、遗产兼容面标注）；**SSE 参考适配器 + 6 测试**（`reference/sse-adapter.ref.mjs`——实测三形态共用内核零改动，"RESPOND 后连接仍活着继续推" = 顺序复合多个 poll 生命周期，无内核缺口）；package.json → 1.0.0；README 快速上手。
-**移交项（不属本分支职权）**：① **`git tag v1.0.0` 由 CFO 在合并后的 main squash commit 上打**（本分支不打 tag）；② **迁 `0/` 平台层**（CR、`0/AGENTS.md` 顶层结构、CONTRACTS-INDEX 登记、模式切 `governed`）**待 CFO 治理流程**（需用户逐字确认），不随本分支落地。
+**移交项（不属本分支职权，均已完成，见上方「工作模式」）**：① **`git tag v1.0.0` 由 CFO 在合并后的 main squash commit 上打**（本分支不打 tag）——✅ 已打，且随后 `v1.0.1` 补打；② **迁 `0/` 平台层**（CR、`0/AGENTS.md` 顶层结构、CONTRACTS-INDEX 登记、模式切 `governed`）**待 CFO 治理流程**（需用户逐字确认）——✅ L0 doc-sync 已于 2026-07-20 完成（PR#27/#28），模式已正式切 `governed`（本三份 module_docs 的措辞同步见 2026-08-12 `chore/governance-promotion`）。
 P5 技术债逐条下落：
 - **信封 id 与 `queue/ids.js` 去重** ✅ **P5 已清偿**：`session/envelope.js` 改为 import `queue/ids.js::genEventId`（唯一事实源），以"clock 传已取 at"保持既有行为逐字不变（id 时间戳分量 === 信封 at）；纯度门开受控白名单（仅此一个文件）并把 ids.js 本身纳入同 5 项严格检查（白名单闭环，61→66 项）。既有测试零修改全绿为兼容证明。
 - **符号中性化** ⏭ **移交 v2/迁平台层专项（P5 决策，未清偿）**：`sessionLockKey`/`skillLockKey`/`orderedSessionEvents`/`maxEventSeq`/`genTurnId` 等领域味命名**未**在 v1.0 中性化——本单兼容门为"既有 187 测试零修改全绿"（最高优先级纪律），重命名必改测试，二者硬冲突；且 `ordering.js` 读 copycat `session.rounds` 结构，是 copycat 换装期的硬依赖遗产面，此刻改名徒增换装成本。处置：契约把它们标注为**遗产兼容面**（冻结如现状、新消费方不应用于新数据建模），中性化 = major，随 v2 或迁平台层 CR 一并做（届时允许改测试、有 CFO 协调消费方）。原"趁 v1.0 定版做"的设想与兼容门冲突，按保守方案让位——记录于 backend P5 worklog。
