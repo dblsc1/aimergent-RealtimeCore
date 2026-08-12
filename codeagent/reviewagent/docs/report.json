@@ -2,38 +2,30 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "reviewagent",
-  "task": "sync-ci-gates-review",
+  "task": "gitignore-worktrees-review",
   "tier": "simple",
   "status": "approved",
-  "summary": "chore/sync-ci-gates 是 realtime_core 首次安装 CI 门禁：.github/workflows/ci.yml + 全部 6 个 ci/gates 文件 + ci/hooks/commit-msg 从无到有，与 L0 母本逐字节相同，已含 7 道门 + status 新枚举（self_checked）。豁免清单（legacy-path-exempt.txt/remote-test-exempt.txt/.gitleaks.toml）沿用 L0 默认版，其中若干条目引用的 L0/其它模块专属路径在本仓不存在——判断为不构成实际安全削弱（路径不存在，匹配恒假），予以接受，登记轻量文档债务供后续收紧（详见报告判断题一节）。diff 无越界，本地 run-gates.sh/run-tests.sh 全绿（含 201/201 单元测试），commit 归属合法。approved。",
+  "summary": "chore/gitignore-worktrees 给 realtime_core 的根 .gitignore 追加 3 行（空行+注释+`.worktrees/`），与 functions/copycat 已生效多时的同一条规则逐字节一致（连注释文字都相同）。diff 恰好 1 个文件、+3/-0；`git check-ignore -v` 权威判定确认新探针路径确实被本仓 .gitignore 里这条新规则命中（非碰巧被其它规则覆盖）；`git ls-files | grep worktrees` 为空，未误伤任何已跟踪文件；本地 run-gates.sh 全绿；commit 归属合法。approved。",
   "git": {
     "protocol": "embedded-self-v2",
-    "branch": "chore/sync-ci-gates",
-    "base": "e6d1808e9d833b8f07cff9e29c3693019b3b676b",
+    "branch": "chore/gitignore-worktrees",
+    "base": "e0faf0210482472e32f3b0cb4bc1d9e93e732227",
     "head": "SELF",
     "diff_mode": "contains",
     "changed_files": [
       "codeagent/reviewagent/docs/report.json",
-      "codeagent/reviewagent/docs/worklog/2026-08-12-reviewagent-sync-ci-gates-review.md",
-      "review/reviewreport/2026-08-12-sync-ci-gates-review.md",
+      "codeagent/reviewagent/docs/worklog/2026-08-12-reviewagent-gitignore-worktrees-review.md",
+      "review/reviewreport/2026-08-12-gitignore-worktrees-review.md",
       "module_docs/reviewlog.md"
     ]
   },
   "review_target": {
-    "branch": "chore/sync-ci-gates",
-    "base": "e6d1808e9d833b8f07cff9e29c3693019b3b676b",
-    "head": "809cb3bba02276046d5a564096d13495f99cb3ab",
+    "branch": "chore/gitignore-worktrees",
+    "base": "e0faf0210482472e32f3b0cb4bc1d9e93e732227",
+    "head": "cf7cdc052516064faf4f7ba60c567e34a9ddae82",
     "diff_mode": "exact",
     "changed_files": [
-      ".github/workflows/ci.yml",
-      "ci/gates/.gitleaks.toml",
-      "ci/gates/agent-attribution-activation",
-      "ci/gates/check-report-schema.sh",
-      "ci/gates/legacy-path-exempt.txt",
-      "ci/gates/remote-test-exempt.txt",
-      "ci/gates/run-gates.sh",
-      "ci/gates/run-tests.sh",
-      "ci/hooks/commit-msg"
+      ".gitignore"
     ]
   },
   "contract": {
@@ -43,22 +35,10 @@
   },
   "cross_module_impact": [],
   "escalation": null,
-  "issues": [
-    {
-      "severity": "info",
-      "file": "ci/gates/legacy-path-exempt.txt, ci/gates/remote-test-exempt.txt, ci/gates/.gitleaks.toml",
-      "line": null,
-      "归属": "process",
-      "summary": "首次安装的豁免清单是 L0 默认版，含 L0/其它模块专属条目（如 docs/0_problems_before_move/、deploy/nginx/portal/*、CFO_agent/、code/backend/characterization），这些路径在 realtime_core 不存在（git ls-files / ls 核实），故不构成实际安全削弱——门禁的路径豁免匹配对不存在的路径恒假，等价于该条豁免从未生效。判断：接受现状，不阻断本次门禁同步；建议后续（不必是本任务）由 realtime_core 的 arbiter 在 module_docs/rules.md 登记一条轻量文档债务，择机把这几条无关条目裁剪为本仓最小豁免集，纯粹是可读性/最小化卫生问题，非安全或功能缺陷（reviewagent 沙盒不含 module_docs/rules.md 写权限，故只登记建议，不越界代写）。"
-    }
-  ],
+  "issues": [],
   "scripts": [
     {
-      "name": "gate-review-verify.sh（15仓统一批量核验：diff范围/exact-set/逐字节比对母本(整文件非仅hunk)/豁免清单未污染/self_checked+bash -n语法/run-gates.sh/run-tests.sh/commit归属trailer，本仓 batch=R）",
-      "result": "pass"
-    },
-    {
-      "name": "gate-effectiveness-test.sh（抽验新门禁有效性：构造与base不同的非法status，用git commit-tree在内存中合成一次性commit，不touch工作区/索引/分支ref，跑check-report-schema.sh确认非0退出；含正控确认合法值放行）",
+      "name": "gitignore-review-verify.sh（14仓统一批量核验：diff恰好1文件+3/-0、追加内容与copycat参照块逐字节比对、git check-ignore -v 权威判定命中本仓.gitignore的.worktrees/规则、git ls-files|grep worktrees 确认零误伤、run-gates.sh退出码、commit归属trailer）",
       "result": "pass"
     }
   ],
