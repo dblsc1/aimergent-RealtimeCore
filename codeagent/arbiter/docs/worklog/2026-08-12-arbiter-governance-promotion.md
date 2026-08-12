@@ -50,3 +50,17 @@ CFO 指派：realtime_core 自己的 `contract.md`（§治理状态）、`rules.
 - 无代码改动：`code/`、`review/reviewcode/` 均未触碰，`check-kernel-purity.mjs`、`node --test`（既有 201 用例）预期不受影响，本次未重跑（无改动面）。
 - `bash ci/gates/run-gates.sh`：见 `codeagent/arbiter/docs/report.json` 的 `self_check` 字段与本 worklog 底部命令输出。
 - 全文一致性自查：改动后通读三份文件，确认"governed"措辞在三处一致、无处再出现"待 CFO 治理流程"/"孵化于 dev/"等旧措辞（`command grep -rn "待CFO治理流程\|孵化于.*dev\|lightweight" module_docs/contract.md module_docs/rules.md module_docs/handoff.md` 只命中历史变更记录表里"当时"的历史陈述行，不是当前状态声明，予以保留——历史行本就该保留原文）。
+
+## 打回复核（reviewagent 首轮审核，P2，2026-08-12）
+
+**打回理由**（reviewagent `review/reviewreport/2026-08-12-governance-promotion-review.md` + CFO 独立核实转发）：`module_docs/rules.md:67`（P5 技术债列表）仍写"真实持久化适配器⏭移交首个消费方落地期……无消费方时写适配器就是无处跑的死代码"，但同一版本的候选（本任务本轮）自己在"治理与变更控制"节把 `copycat` 登记为首个消费方并钉 `v1.0.1`——"等消费方出现"与"消费方已经在这儿了"在同一份文档集里并存，铁律11 全文一致性未过。CFO 转发时额外指出这条不是孤例：`rules.md:52`（P3b 段落末尾）、`contract.md:249`（明确非目标）、`handoff.md:35`（技术债余额）都有同一句式"随（首个）消费方落地"/"随首个消费方"，四处需要一并核对，不能只改 reviewagent 点名的那一行。
+
+**根因（如实记录，不粉饰）**：我上面"自检"小节的全文一致性自查只 grep 了我自己新写/改写过的几个关键词（"待CFO治理流程""孵化于dev""lightweight"），没有反向检查"我新写的内容是否与文件里我没碰过的旧段落矛盾"。P3b/P5/明确非目标/技术债余额这几段是历史遗留内容，本轮任务单范围原本只要求"治理状态"同步，我判断这些技术债条目"不在本次任务范围"因而没有触碰、也没有把它们纳入一致性扫描——但铁律11 的"改一处先扫全文"不是"只扫我自己改的地方"，是扫**整份文件**，一旦我在同一份文件里新增了会与旧内容冲突的陈述，就必须把旧内容也扫一遍。这是本轮学到的具体教训，不只是"这一条债务表述过时"这么简单。
+
+**核实与修正**：`command grep -n "持久化适配器\|随首个消费方\|随消费方\|无消费方" module_docs/contract.md module_docs/rules.md module_docs/handoff.md` 精确定位到 4 处（contract.md:249、rules.md:52、rules.md:67、handoff.md:35），逐一修正为同一套准确表述：**触发条件从"是否存在任意消费方"改为"`session/` 端口（logStore/snapshotStore）是否出现生产环境实际消费者"**——copycat 已落地但目前只消费 `transport/`；其自己写的 `code/backend/src/data/sqlite-log-store.js`（logStore 端口 SQLite 实现）按其 Step-5 R3b 决定尚未接入生产组合根，只被自己的测试文件引用（`git grep` 全 copycat `src/` 复核确认无第二处 import）；`session/` 端口截至目前仍是 0 个生产消费者。**决策本身不变**（本库仍不提供真实持久化适配器，只有端口契约+内存参考实现），只是触发条件的措辞从过时（"等任意消费方"）改为准确（"等 session/ 端口的生产消费者"）——这正是 CFO 给的方向："按端口区分而非按有无消费方"，核实后认为完全适用，未提出不同意见。四处里把完整推理放在 rules.md:67（技术债列表，最权威的位置），其余三处改成指向它的短指针，避免以后四处独立措辞又各自漂移。
+
+**处置**：以同一 arbiter 身份、同一分支 `chore/governance-promotion` 追加 commit（不新开分支，trailer 沿用 `arbiter@realtime_core+governance-promotion`），不影响铁律14/15。
+
+## 关于"曾直接写主检出"（llm_services 任务的流程事故，CFO 裁决记录于此，避免散落）
+
+这是 llm_services（B 项）任务中发生的事，不是本模块（realtime_core，A 项）的事故，但 CFO 要求在处理这次打回时一并把裁决记录清楚：任务开始时误在 llm_services 主检出（`main` 分支）直接改了 4 个文件，中途 `git add -A` 暂存过一次，**从未 commit、从未 push**。发现遗漏 worktree 后自行纠正（详见 llm_services 仓 `codeagent/backend/docs/worklog/2026-08-12-backend-log-retention.md`）。CFO 独立用 git 核验后裁决：**不构成打回**——①在 CFO 介入前已自己发现并完整纠正；②git 核验 main 干净、零多余 commit、reflog 无 commit 记录；③worklog 如实披露未隐瞒。**根因**：先动文件、后建 worktree——正确做法是把"建 worktree"当作动第一个文件之前的第 0 步，而不是改完发现漏做了再回头补。这条记录本身不删除、不淡化，按 CFO 要求原样留痕。

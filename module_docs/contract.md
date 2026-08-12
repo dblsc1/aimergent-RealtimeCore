@@ -246,7 +246,7 @@ send(payload: string) → void        isOpen() → boolean
 
 - **层级/并行状态机、entry/exit actions、invoke/actor、延迟转移、字符串 target 简写**：defineMachine 只做平表（YAGNI，评估记录见 rules.md P4/P5）；纳入任何一项 = minor（新增能力）或按需 v2。
 - **跨进程/分布式分片**：锁、channels、registry、wakeup 都是进程内原语；跨进程一致性靠 logStore 端口的 CAS（实现方可用 DB 唯一约束落地），但库不提供分片/选主/集群协议。
-- **持久化存储实现**：只有端口契约 + 内存参考实现；真实适配器（SQLite/Postgres/…）随首个消费方落地（rules.md 技术债跟踪）。
+- **持久化存储实现**：只有端口契约 + 内存参考实现；真实适配器（SQLite/Postgres/…）触发条件是 `session/` 端口出现**生产环境实际消费者**，不是"任意消费方存在"——首个消费方 `functions/copycat` 已落地但目前只消费 `transport/`，详见 rules.md P5 节技术债。
 - **copycat `services/realtime/classroom.js` L2 糖层**：未随抽取（P1 决策 2：无生产消费方，抽了就是死代码）；copycat 换装期若需要再按契约组装。
 - **HTTP/WS/SSE 服务器表面**：库不起进程、不带路由；`reference/` 各适配器是组装示例（**不属契约面**），传输接线归消费方。
 - **重复键定义检测**：JS 对象字面量静默折叠重复键，运行时不可检测；以"未知键严格拒绝"为等价响亮校验（machine 条目已注明）。
@@ -283,3 +283,4 @@ send(payload: string) → void        isOpen() → boolean
 | 2026-07-19 | 无（dev 孵化，无 CR） | P4 defineMachine 声明式转移表：平表 + 纯谓词守卫 + 定义期全面校验。既有 153 测试零修改全绿，两不变量 property 钉死，纯度门 56→61 |
 | 2026-07-19 | 无（dev 孵化，无 CR） | **P5 契约正式化（本版）**：draft 全部转正 → v1.0.0 冻结基线（35 导出符号 · 5 端口 · 15 条不变量承诺表与测试互指）；semver 政策 + 信封"只加不改" + 升级链规则单列；遗产兼容面（queue/ + session·skill lock keys）标注冻结、中性化移交 v2/迁平台层；SSE 参考适配器实测三形态共用内核（`reference/sse-adapter.ref.mjs`）；收债：信封 id 去重到 `queue/ids.js`（纯度门白名单闭环 61→66）、`ordering.js` 补 8 专属测试；`longPoll` 微任务窗口（timeout 兜底）如实入契。既有 187 测试零修改全绿（201/201 总）。tag `v1.0.0` 待 CFO 于 main 打；迁平台层待 CFO 治理流程 |
 | 2026-08-12 | 无（module_docs 治理状态文档同步；不改变 API 面/端口契约/不变量，不触发新 CR） | **治理模式正式声明为 governed**：`0/` 平台层转正的 L0 doc-sync 已于 2026-07-20 完成（PR #27 `e19d903` 物理迁移+CONTRACTS-INDEX+`repo-status.sh`；PR #28 `86d3057` 补 `install-ci.sh`/`merge-to-main.sh` 白名单；consulter 独立审核 APPROVED），但本文件三周未同步"治理状态"措辞——本次补齐：治理状态段落改写为 governed + 证据；新增"治理与变更控制"节（契约冻结 + CR 流程 + 消费方清单，唯一已核实消费方 `functions/copycat`，`session/`/`machine/` 端口消费现状一并核实记录）。分支 `chore/governance-promotion` |
+| 2026-08-12 | 无（同一任务打回后修订；铁律11 全文一致性修正，不改变 API 面/端口契约/不变量，不触发新 CR） | **修正"真实持久化适配器"触发条件的内部矛盾**（reviewagent 首轮审核 rejected，P2）：本轮新增的"治理与变更控制"节登记了 copycat 为首个消费方，但"明确非目标"（本文件 L249）与 rules.md 两处、handoff.md 一处仍写"随首个消费方落地"/"无消费方时写适配器就是无处跑的死代码"——同一份文档集里"等消费方出现"与"消费方已经在这儿了"并存，铁律11 全文一致性未过。修正为：触发条件从"是否存在任意消费方"改为"`session/` 端口（logStore/snapshotStore）是否出现生产环境实际消费者"——copycat 已落地但只消费 `transport/`，其自写的 `sqlite-log-store.js`（logStore 端口 SQLite 实现）按其 Step-5 R3b 决定尚未接入生产组合根，`session/` 端口截至目前仍是 0 个生产消费者，决策本身（仍不提供真实适配器）不变，只是触发条件表述从过时变准确。四处逐一修正（本文件 L249 + rules.md L52/L67 + handoff.md L35），完整推理见 rules.md L67（唯一权威详述，其余三处为指向它的短指针，避免未来四处独立措辞再度漂移）。见 `codeagent/arbiter/docs/worklog/2026-08-12-arbiter-governance-promotion.md`「打回复核」节 |

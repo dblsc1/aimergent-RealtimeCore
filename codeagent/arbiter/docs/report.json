@@ -2,10 +2,10 @@
   "schema_version": 2,
   "module": "realtime_core",
   "role": "arbiter",
-  "task": "governance-promotion：核实平台层转正三项(物理迁移/CONTRACTS-INDEX/CI白名单)是否真的完成，并把 contract.md/rules.md/handoff.md 的治理状态从「孵化于dev/、待转正」同步为「已转正governed」，写明触发条件证据、受治理规则(契约冻结+变更走CR)与实查消费方清单；不改 code/、review/",
+  "task": "governance-promotion：核实平台层转正三项(物理迁移/CONTRACTS-INDEX/CI白名单)是否真的完成，并把 contract.md/rules.md/handoff.md 的治理状态从「孵化于dev/、待转正」同步为「已转正governed」，写明触发条件证据、受治理规则(契约冻结+变更走CR)与实查消费方清单；不改 code/、review/。【本报告为打回复核第2轮，见下方 rejection_history】",
   "tier": "normal",
   "status": "approved",
-  "summary": "独立核实（不直接采信既有债务复审报告，自己重新 grep/git log/git show）：转正三项全部属实、证据具体到 commit/文件/行号——物理迁移（`0/realtime_core/`存在，`dev/realtime_core/`已不存在）、CONTRACTS-INDEX（`0/deploy/CONTRACTS-INDEX.md` 模块矩阵L13+反查表L33）、CI白名单（`install-ci.sh:26,62`/`merge-to-main.sh:18`/`repo-status.sh:136`），均来自 `0/` 仓 commit `e19d903`(PR#27) + `86d3057`(PR#28)，2026-07-20，consulter 独立审核 APPROVED。消费方清单实查（非契约文本自称）：唯一消费方 `functions/copycat`（git tag 固定 `v1.0.1`），实际只消费 `transport/`（`poll-machine`/`dispatch`/`engine`/`channels`，经 `library.js` 转发+`createPollRegistry`在`home-realtime-wiring.js`实用）；`session/`（`sqlite-log-store.js`）已写但未接入生产组合根（grep确认`app.js`及其余src/无import）；`machine/`(defineMachine)全仓零命中未消费。三份 module_docs 治理状态措辞同步为 governed：contract.md 治理状态段落改写+新增「治理与变更控制」节（契约冻结/CR流程/消费方清单表）+变更记录加行；rules.md 工作模式段落改写+跨仓依赖机制更新+P5路线图移交项补✅避免同文件自相矛盾；handoff.md 一句话摘要与路线图结尾段同步。未发现转正本身有缺口，任务性质未变为「先补完转正」。发现两项不在本次写域内的问题已如实记录未擅自改：①copycat自己contract.md:26声称消费defineMachine但代码零命中（copycat侧契约措辞问题）；②`0/deploy/CONTRACTS-INDEX.md:4`头部说明句仍未列realtime_core（CFO维护范围，consulter已记录非阻断待办）。未改 code/、review/。",
+  "summary": "独立核实（不直接采信既有债务复审报告，自己重新 grep/git log/git show）：转正三项全部属实、证据具体到 commit/文件/行号——物理迁移（`0/realtime_core/`存在，`dev/realtime_core/`已不存在）、CONTRACTS-INDEX（`0/deploy/CONTRACTS-INDEX.md` 模块矩阵L13+反查表L33）、CI白名单（`install-ci.sh:26,62`/`merge-to-main.sh:18`/`repo-status.sh:136`），均来自 `0/` 仓 commit `e19d903`(PR#27) + `86d3057`(PR#28)，2026-07-20，consulter 独立审核 APPROVED。消费方清单实查（非契约文本自称）：唯一消费方 `functions/copycat`（git tag 固定 `v1.0.1`），实际只消费 `transport/`（`poll-machine`/`dispatch`/`engine`/`channels`，经 `library.js` 转发+`createPollRegistry`在`home-realtime-wiring.js`实用）；`session/`（`sqlite-log-store.js`）已写但未接入生产组合根（grep确认`app.js`及其余src/无import）；`machine/`(defineMachine)全仓零命中未消费。三份 module_docs 治理状态措辞同步为 governed：contract.md 治理状态段落改写+新增「治理与变更控制」节（契约冻结/CR流程/消费方清单表）+变更记录加行；rules.md 工作模式段落改写+跨仓依赖机制更新+P5路线图移交项补✅避免同文件自相矛盾；handoff.md 一句话摘要与路线图结尾段同步。未发现转正本身有缺口，任务性质未变为「先补完转正」。发现两项不在本次写域内的问题已如实记录未擅自改：①copycat自己contract.md:26声称消费defineMachine但代码零命中（copycat侧契约措辞问题）；②`0/deploy/CONTRACTS-INDEX.md:4`头部说明句仍未列realtime_core（CFO维护范围，consulter已记录非阻断待办）。未改 code/、review/。【第2轮追加】：reviewagent 首轮审核 rejected（P2）——本轮新增的消费方登记与 rules.md/contract.md/handoff.md 四处「随首个消费方落地」/「无消费方时…死代码」的旧技术债表述并存，铁律11 全文一致性未过（不止 reviewagent 点名的 rules.md:67 一处，CFO 转发复核后指出还有 rules.md:52/contract.md:249/handoff.md:35 三处同构问题，一并修正）。修正方向按 CFO 给出的判断原则「按端口区分而非按有无消费方」：触发条件从「是否存在任意消费方」改为「session/端口是否出现生产环境实际消费者」——copycat 已落地但只消费 transport/，其自写的 sqlite-log-store.js（session/ 的 logStore 适配器）未接入生产组合根，session/ 端口仍是0个生产消费者，决策本身（不提供真实适配器）不变，只是触发条件表述订正。四处统一改法：rules.md:67 放完整推理（唯一权威），其余三处改成指向它的短指针。",
   "git": {
     "protocol": "embedded-self-v2",
     "branch": "chore/governance-promotion",
@@ -30,6 +30,18 @@
     "functions/copycat（唯一已核实消费方；本次未改动 copycat 任何文件/代码，只在 realtime_core 侧正式登记消费关系与治理规则；今后 realtime_core 契约变更需先走 CR 并评估对 copycat 的影响面——这条规则本次才正式生效，之前是真空）"
   ],
   "escalation": null,
+  "rejection_history": [
+    {
+      "round": 1,
+      "verdict": "rejected",
+      "severity": "P2",
+      "reviewer": "reviewagent (commit a23b7f3, review/reviewreport/2026-08-12-governance-promotion-review.md)",
+      "issue": "module_docs/rules.md:67 仍写「真实持久化适配器…移交首个消费方落地期…无消费方时写适配器就是无处跑的死代码」，与本轮候选自己新登记的消费方（copycat, v1.0.1）矛盾——铁律11 全文一致性未过",
+      "cfo_broadened_scope": "CFO 独立核实同一根因后指出还有 rules.md:52、contract.md:249、handoff.md:35 三处同构表述，要求一并核对而非只改 reviewagent 点名的一行",
+      "fix": "四处触发条件统一改为「session/ 端口是否出现生产环境实际消费者」（非「是否存在任意消费方」），完整推理放 rules.md:67，其余三处指向它；决策本身不变（仍不提供真实适配器）",
+      "disposition": "已修正，同分支追加 commit，trailer 沿用"
+    }
+  ],
   "self_check": {
     "code_touched": false,
     "review_touched": false,
