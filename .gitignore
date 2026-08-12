@@ -13,3 +13,6 @@
 **/.env.*
 !**/.env.example
 !**/.env.*.example
+
+# worker 并行构建隔离用仓根 git worktree（PROC-042 永久闭）：未 gitignore 会污染主 checkout 挡 merge
+.worktrees/
