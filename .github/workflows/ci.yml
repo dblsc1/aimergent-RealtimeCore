@@ -24,6 +24,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: ci/gates/.gitleaks.toml
+          # 仓转入 XAImergent 组织后，gitleaks-action 对组织要求 license，
+          # 否则整步失败并让后续 deterministic gates 被 skip（不是通过，是没跑）。
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
       - name: deterministic gates
         run: bash ci/gates/run-gates.sh
 
