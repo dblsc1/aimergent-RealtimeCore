@@ -13,3 +13,5 @@
 | 2026-08-12 | sync-ci-gates-review | approved | review/reviewreport/2026-08-12-sync-ci-gates-review.md | 首次安装7道门+status分档新枚举，与L0母本逐字节相同；豁免清单继承L0默认版但引用路径本仓均不存在(判断不构成实际削弱,接受+登记轻量债务见报告);批量脚本+抽验(含正控)全绿,201/201单测通过 |
 | 2026-08-12 | gitignore-worktrees-review | approved | review/reviewreport/2026-08-12-gitignore-worktrees-review.md | .gitignore追加3行(空行+注释+.worktrees/)与copycat同一条规则逐字节一致;diff恰好1文件+3/-0;git check-ignore -v确认命中本仓这条新规则(非碰巧被覆盖);ls-files|grep worktrees为空零误伤;run-gates.sh本地全绿,commit归属合法 |
 | 2026-08-12 | ci-node22-review | approved | review/reviewreport/2026-08-12-ci-node22-review.md | exact `1d45fee..88a08d3`；workflow 独占 +1/-1，Node 20→22，L0 Git blob、trailer、engines 与 gates 均通过。 |
+
+| 2026-08-23 | gitleaks-license-env（`9061648118fb3f94b27226970b2c119d434a059d..47c1bc75fa7295cf3d0e454bf3f84fc361dbea07`） | **approved** | review/reviewreport/2026-08-23-gitleaks-license-env.md | 新写 review/reviewcode/ci/check_gitleaks_license.sh 机械核验5条：diff恰好1文件、GITLEAKS_LICENSE落在gitleaks-action step的env块内(非裸grep,按缩进解析)、右值为secrets引用且全diff无明文、原有GITHUB_TOKEN/GITLEAKS_CONFIG未受影响、YAML合法(pyyaml)；run-gates.sh本地全绿。 |
