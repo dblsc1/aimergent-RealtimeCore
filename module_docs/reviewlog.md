@@ -2,6 +2,7 @@
 
 > 一行一条，仅 reviewagent 追加。详细报告在 `review/reviewreport/`。
 | 2026-08-12 | governance-promotion | rejected | review/reviewreport/2026-08-12-governance-promotion-review.md | exact `9061648..d438e7a`；转正/消费证据成立，但 P5 “首个消费方”持久化路线图与现状矛盾。 |
+| 2026-08-22 | governance-promotion（复审第2轮） | rejected | review/reviewreport/2026-08-22-governance-promotion-rereview.md | exact `9061648..a6994bd`；首轮 4 处矛盾确已全改、无第 5 处漏网，新触发条件核心判据经 copycat 只读实查成立（sqlite-log-store.js 未接组合根、session/ 端口 0 生产消费者）；但修复文本断言 copycat「只消费 transport/」为事实错误（另有 concurrency/ 7 处含 app.js:67、queue/ 3 处），与本仓 rules.md:65 冲突，且 contract.md:269 消费方清单（CR 影响面评估依据）漏登这两个面。新增检测脚本 check-consumer-scope.sh（含负控）。已达打回上限 2 次。 |
 
 | 日期 | 任务 | verdict | 报告 | 备注 |
 |---|---|---|---|---|

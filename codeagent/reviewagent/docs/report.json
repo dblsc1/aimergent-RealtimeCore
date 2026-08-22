@@ -1,1 +1,102 @@
-{"schema_version":2,"module":"realtime_core","role":"reviewagent","task":"governance-promotion review","tier":"simple","status":"rejected","summary":"转正证据与 copycat 消费范围成立，但 P5 路线图仍称真实持久化适配器“随首个消费方落地”，与已存在的首个消费方及本次消费清单矛盾。","git":{"protocol":"embedded-self-v2","branch":"chore/governance-promotion","base":"9061648118fb3f94b27226970b2c119d434a059d","head":"SELF","diff_mode":"contains","changed_files":["codeagent/reviewagent/docs/report.json","codeagent/reviewagent/docs/worklog/2026-08-12-reviewagent-governance-promotion.md","review/reviewreport/2026-08-12-governance-promotion-review.md","module_docs/reviewlog.md"]},"review_target":{"branch":"chore/governance-promotion","base":"9061648118fb3f94b27226970b2c119d434a059d","head":"d438e7a9ac967550704e96f2d2a9671f40705586","diff_mode":"exact","changed_files":["codeagent/arbiter/docs/WorkIterationDiary/governance-promotion/arbiter.jsonl","codeagent/arbiter/docs/report.json","codeagent/arbiter/docs/worklog/2026-08-12-arbiter-governance-promotion.md","module_docs/contract.md","module_docs/handoff.md","module_docs/rules.md"]},"contract":{"touched":true,"which":["realtime_core.lib-api.v1.0.0"],"consumes":[]},"cross_module_impact":["functions/copycat"],"escalation":null,"issues":[{"severity":"P2","file":"module_docs/rules.md","line":67,"owner":"contract","summary":"P5 still says real persistence is deferred until the first consumer, while the same candidate proves copycat is already the first consumer and has an unconnected SQLite adapter. Update the roadmap to the real current decision/state so the three governance documents have one executable truth."}],"scripts":[{"name":"physical/CONTRACTS-INDEX/CI probes","result":"PASS"},{"name":"copycat import and tag probes","result":"PASS"}],"tests_verified":false,"contract_conformance":false}
+{
+ "schema_version": 2,
+ "module": "realtime_core",
+ "role": "reviewagent",
+ "task": "governance-promotion 打回复审（第 2 轮）：核实 4 处矛盾是否全改/有无第 5 处、新触发条件口径是否站得住（去 copycat 只读实查）、指针结构能否防漂移、首轮 issue 是否全闭环",
+ "tier": "simple",
+ "status": "rejected",
+ "summary": "首轮点名的矛盾 4 处确已全改、module_docs 内无第 5 处漏网，新口径核心判据（session/ 端口 0 生产消费者、sqlite-log-store.js 未接组合根）经 copycat 只读实查成立；但修复文本新引入/扩散同一类别（铁律11）事实错误——contract.md:249、rules.md:67、handoff.md:35 断言 copycat「只消费 transport/」，而其生产代码另有 concurrency/(7 处含 app.js:67)、queue/(3 处) import，且与本仓 rules.md:65「copycat 换装期硬依赖遗产面」直接冲突；contract.md:269 消费方清单（被声明为 CR 影响面评估依据）同样漏登这两个面。故 rejected。",
+ "git": {
+  "protocol": "embedded-self-v2",
+  "branch": "chore/governance-promotion",
+  "base": "9061648118fb3f94b27226970b2c119d434a059d",
+  "head": "SELF",
+  "diff_mode": "contains",
+  "changed_files": [
+   "codeagent/reviewagent/docs/report.json",
+   "codeagent/reviewagent/docs/worklog/2026-08-22-reviewagent-governance-promotion-rereview.md",
+   "review/reviewreport/2026-08-22-governance-promotion-rereview.md",
+   "review/reviewcode/module_docs/check-consumer-scope.sh",
+   "module_docs/reviewlog.md"
+  ]
+ },
+ "review_target": {
+  "branch": "chore/governance-promotion",
+  "base": "9061648118fb3f94b27226970b2c119d434a059d",
+  "head": "a6994bd612c2160e2eb7b9bfeac853b66f170203",
+  "diff_mode": "exact",
+  "changed_files": [
+   "codeagent/arbiter/docs/WorkIterationDiary/governance-promotion/arbiter.jsonl",
+   "codeagent/arbiter/docs/report.json",
+   "codeagent/arbiter/docs/worklog/2026-08-12-arbiter-governance-promotion.md",
+   "codeagent/reviewagent/docs/report.json",
+   "codeagent/reviewagent/docs/worklog/2026-08-12-reviewagent-governance-promotion.md",
+   "module_docs/contract.md",
+   "module_docs/handoff.md",
+   "module_docs/reviewlog.md",
+   "module_docs/rules.md",
+   "review/reviewreport/2026-08-12-governance-promotion-review.md"
+  ]
+ },
+ "contract": {
+  "touched": true,
+  "which": [
+   "realtime_core.lib-api.v1.0.0（治理状态段落 + 治理与变更控制节 + 明确非目标节；未改导出符号签名/端口义务/不变量承诺表本体）"
+  ],
+  "consumes": []
+ },
+ "cross_module_impact": [
+  "functions/copycat（消费方清单漏登 concurrency/、queue/ 两个面，会使未来针对这两面的 CR 影响面评估漏判 copycat 生产代码 10 处 import；本轮只读核实，未改动 copycat 任何文件）"
+ ],
+ "escalation": {
+  "reason": "打回上限",
+  "detail": "本次为同一任务第 2 次 rejected，已达铁律「同一任务打回上限 2 次」。若第 3 轮仍不通过，按角色纪律须升级 CFO 裁决，不由 reviewagent 继续打回。剩余修法很小：contract.md:249 / rules.md:67 / handoff.md:35 三处删掉「copycat 只消费 transport/」这句事实副本（只留触发条件与指针），contract.md:269 消费方清单补 concurrency/ 与 queue/ 两个面。"
+ },
+ "issues": [
+  {
+   "severity": "P2",
+   "file": "module_docs/contract.md",
+   "line": 249,
+   "owner": "contract",
+   "summary": "新写入的「首个消费方 functions/copycat 已落地但目前只消费 `transport/`」是事实错误：copycat 生产代码另有 concurrency/locks 7 处 import（app.js:67、routes/teacher-rest.js:28、routes/teacher-session-commands.js:21、routes/teacher-skill-commands.js:13、services/session-state/service.js:33、application/persona/operation-port.js:1、domains/basic/skill-routes.js:11）与 queue/ 3 处（services/session-state/core/library.js:4,5、services/session-state/operations/push.js:14）。同句错误复制在 rules.md:67、handoff.md:35、contract.md:286。与本仓 rules.md:65「sessionLockKey/skillLockKey/orderedSessionEvents/genTurnId 是 copycat 换装期的硬依赖遗产面」直接冲突 —— 与首轮打回同属铁律11 全文一致性缺陷。修法：三处指针删掉消费范围事实句，只留「触发条件见 rules.md P5 节」；rules.md:67 改述为「session/ 端口尚无生产消费者」（已核实为真的那条事实）。"
+  },
+  {
+   "severity": "P2",
+   "file": "module_docs/contract.md",
+   "line": 269,
+   "owner": "contract",
+   "summary": "消费方清单行只登记 transport/、session/、machine/，漏登 concurrency/ 与 queue/。该表在 contract.md:263 被明确声明为「供 CR 评审时评估影响面」，漏登直接导致未来改这两个面的 CR 被评为「不影响 copycat」，而实际会打断 copycat 生产代码 10 处 import（含组合根 app.js）。缺陷源自首轮 candidate d438e7a、首轮审核漏检（首轮报告同样误写 forwards only transport/），本轮扩散到正文，必须一并修。机械证据见 review/reviewcode/module_docs/check-consumer-scope.sh B1 段。"
+  },
+  {
+   "severity": "P3",
+   "file": "module_docs/rules.md",
+   "line": 67,
+   "owner": "contract",
+   "summary": "（观察项，不单独构成打回）「唯一权威 + 三处短指针」方向正确但未做到位：三处指针各自又嵌了一份易变事实（copycat 消费范围），同一事实仍有 4 份独立措辞副本，漂移向量原样保留，P2-1 即其当场发作。更深层：现存两个互相竞争的消费范围事实源——contract.md:269 清单表（清单权威）与 rules.md:67（触发条件权威）——且二者当前已互相矛盾。建议单一事实源定为 contract.md:269 清单表，rules.md:67 只写判据并指向它，handoff/contract 非目标节只留纯指针、零事实。"
+  }
+ ],
+ "scripts": [
+  {
+   "name": "review/reviewcode/module_docs/check-consumer-scope.sh（本轮新增；A 提取消费方生产代码实际 scope，B1 核 contract 消费方清单覆盖，B2 核 module_docs「只消费…」排他断言）",
+   "result": "FAIL（exit 1）：B1 concurrency/、queue/ 未登记；B2 rules.md:67 / contract.md:249,286 / handoff.md:35 四处排他断言与实际集合不符"
+  },
+  {
+   "name": "同上脚本 · 负控（scratchpad 临时树按建议修法改正后重跑，防空转）",
+   "result": "PASS（exit 0，RESULT: PASS）——证明脚本有判别力、非恒红"
+  },
+  {
+   "name": "关键词全仓扫描（6 个关键词 command grep -rno file:line，核 4 处是否全改、有无第 5 处）",
+   "result": "PASS：4 处全改；module_docs 内无第 5 处；其余命中均为不应改的历史留痕（backend report.json:69、旧 worklog/reviewreport）；contract.md:250 糖层「无生产消费方」经核为真话、非矛盾"
+  },
+  {
+   "name": "copycat 只读实查（sqlite-log-store.js 引用者、session/ 端口生产消费者）",
+   "result": "PASS：sqlite-log-store.js 唯一引用者是其自身 property test，文件头注释自述未接组合根；session/ 端口 0 个生产消费者 —— 新口径核心判据成立"
+  },
+  {
+   "name": "bash ci/gates/run-gates.sh",
+   "result": "PASS（exit 0，7 道门全绿）"
+  }
+ ],
+ "tests_verified": false,
+ "contract_conformance": false
+}
