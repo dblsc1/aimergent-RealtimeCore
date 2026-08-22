@@ -72,21 +72,47 @@ else
 fi
 note ""
 
-# ---- B2. module_docs 里有没有"只消费 X"式的排他断言与 A 矛盾 -------------
-note "== B2. module_docs 排他性断言（「只消费 …」）与实际 scope 集合的一致性 =="
-hits="$(command grep -rn '只消费' "$REPO_ROOT/module_docs/" 2>/dev/null || true)"
+# ---- B2. 规范性文档里有没有"只消费 X"式的排他断言与 A 矛盾 -------------
+# 扫描范围 = module_docs/ 下的**规范性文档**（contract.md / rules.md / handoff.md
+# / report.md …），排除**审核历史留痕** reviewlog.md。
+# 为什么必须排除：reviewlog.md 是 reviewagent 的结案台账，一行一条历史结论，
+# 里面会**引述**被打回的那句错话以记录 finding（如 2026-08-22 行引述
+# 「只消费 transport/」）。引述 ≠ 断言；台账行是 append-only 的历史事实，
+# 按项目 AGENTS.md「无人改历史」不得回头改写。B2 只扫"文档当下对外做出的
+# 规范性断言"，故按**文件角色**而非字面区分断言与引述。
+# 注意这是 denylist 而非 allowlist：module_docs/ 下**新增**的任何规范性文档
+# 自动纳入扫描，不会因为没写进白名单而漏检（检测力只对 reviewlog.md 让步）。
+EXCLUDE_BASENAMES="reviewlog.md"
+
+note "== B2. 规范性文档排他性断言（「只消费 …」）与实际 scope 集合的一致性 =="
+note "     （扫描 module_docs/ 全部文档，排除审核历史留痕：$EXCLUDE_BASENAMES）"
+raw_hits="$(command grep -rn '只消费' "$REPO_ROOT/module_docs/" 2>/dev/null || true)"
+hits=""
+while IFS= read -r h; do
+  [ -n "$h" ] || continue
+  bn="$(basename "${h%%:*}")"
+  skip=0
+  for ex in $EXCLUDE_BASENAMES; do [ "$bn" = "$ex" ] && skip=1; done
+  [ "$skip" -eq 1 ] && { note "  skip  $bn:$(x="${h#*:}"; printf '%s' "${x%%:*}") —— 审核历史留痕（引述非断言），不参与断言判定"; continue; }
+  hits="$hits$h
+"
+done <<< "$raw_hits"
+hits="$(printf '%s' "$hits" | command grep -v '^$' || true)"
+
 if [ -z "$hits" ]; then
-  pass "module_docs 无「只消费 …」排他断言"
+  pass "规范性文档中无「只消费 …」排他断言"
 else
   while IFS= read -r h; do
     [ -n "$h" ] || continue
     loc="${h%%:*}"; ln="${h#*:}"; ln="${ln%%:*}"
     claimed=""
+    seg="${h#*只消费}"; seg="${seg:0:25}"
     while IFS= read -r s; do
       [ -n "$s" ] || continue
-      # 断言句里提到的 scope
-      seg="${h#*只消费}"; seg="${seg:0:25}"
-      printf '%s' "$seg" | command grep -q "\`$s/\?\`\|\`$s/" && claimed="$claimed $s"
+      # 断言句里提到的 scope；带不带反引号都算（`transport/` / `transport` / transport/）
+      case "$seg" in
+        *"\`$s/"*|*"\`$s\`"*|*"$s/"*) claimed="$claimed $s";;
+      esac
     done <<< "$scopes"
     missing=""
     while IFS= read -r s; do

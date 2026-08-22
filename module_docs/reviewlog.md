@@ -1,8 +1,6 @@
 # realtime_core · 审核结论台账
 
 > 一行一条，仅 reviewagent 追加。详细报告在 `review/reviewreport/`。
-| 2026-08-12 | governance-promotion | rejected | review/reviewreport/2026-08-12-governance-promotion-review.md | exact `9061648..d438e7a`；转正/消费证据成立，但 P5 “首个消费方”持久化路线图与现状矛盾。 |
-| 2026-08-22 | governance-promotion（复审第2轮） | rejected | review/reviewreport/2026-08-22-governance-promotion-rereview.md | exact `9061648..a6994bd`；首轮 4 处矛盾确已全改、无第 5 处漏网，新触发条件核心判据经 copycat 只读实查成立（sqlite-log-store.js 未接组合根、session/ 端口 0 生产消费者）；但修复文本断言 copycat「只消费 transport/」为事实错误（另有 concurrency/ 7 处含 app.js:67、queue/ 3 处），与本仓 rules.md:65 冲突，且 contract.md:269 消费方清单（CR 影响面评估依据）漏登这两个面。新增检测脚本 check-consumer-scope.sh（含负控）。已达打回上限 2 次。 |
 
 | 日期 | 任务 | verdict | 报告 | 备注 |
 |---|---|---|---|---|
@@ -15,3 +13,6 @@
 | 2026-08-12 | sync-ci-gates-review | approved | review/reviewreport/2026-08-12-sync-ci-gates-review.md | 首次安装7道门+status分档新枚举，与L0母本逐字节相同；豁免清单继承L0默认版但引用路径本仓均不存在(判断不构成实际削弱,接受+登记轻量债务见报告);批量脚本+抽验(含正控)全绿,201/201单测通过 |
 | 2026-08-12 | gitignore-worktrees-review | approved | review/reviewreport/2026-08-12-gitignore-worktrees-review.md | .gitignore追加3行(空行+注释+.worktrees/)与copycat同一条规则逐字节一致;diff恰好1文件+3/-0;git check-ignore -v确认命中本仓这条新规则(非碰巧被覆盖);ls-files|grep worktrees为空零误伤;run-gates.sh本地全绿,commit归属合法 |
 | 2026-08-12 | ci-node22-review | approved | review/reviewreport/2026-08-12-ci-node22-review.md | exact `1d45fee..88a08d3`；workflow 独占 +1/-1，Node 20→22，L0 Git blob、trailer、engines 与 gates 均通过。 |
+| 2026-08-12 | governance-promotion | rejected | review/reviewreport/2026-08-12-governance-promotion-review.md | exact `9061648..d438e7a`；转正/消费证据成立，但 P5 “首个消费方”持久化路线图与现状矛盾。 |
+| 2026-08-22 | governance-promotion（复审第2轮） | rejected | review/reviewreport/2026-08-22-governance-promotion-rereview.md | exact `9061648..a6994bd`；首轮 4 处矛盾确已全改、无第 5 处漏网，新触发条件核心判据经 copycat 只读实查成立（sqlite-log-store.js 未接组合根、session/ 端口 0 生产消费者）；但修复文本断言 copycat「只消费 transport/」为事实错误（另有 concurrency/ 7 处含 app.js:67、queue/ 3 处），与本仓 rules.md:65 冲突，且 contract.md:269 消费方清单（CR 影响面评估依据）漏登这两个面。新增检测脚本 check-consumer-scope.sh（含负控）。已达打回上限 2 次。 |
+| 2026-08-22 | governance-promotion（终审第3轮） | approved | `review/reviewreport/2026-08-22-governance-promotion-final.md` | exact `9061648..0839cbf`；CFO 点名 5 处（contract.md 非目标节/清单表/变更记录行、rules.md P5、handoff.md 技术债条）全部修到位，B1 段 concurrency//queue/ 由 FAIL 转 PASS；arbiter 另自查修正的 3 处（rules.md 工作模式节、rules.md P3b 条尾、handoff.md 概述节）经独立 diff 核对属铁律11「关联文档全同步」要求范围内、未越界、改得对；消费范围事实副本 7→1，单一事实源 = contract.md 消费方清单表（已由 B1 段机械钉死），全文再扫无第 8 处漏网；rules.md 符号中性化条与 base 逐字符相同（未被误改）、代码零改动、历史留痕未回改。**本轮修了我自己脚本的假阳性**：check-consumer-scope.sh B2 段分不清规范性断言与台账引述，误判本表上一行——改为按文件角色排除审核历史留痕（denylist，新增规范性文档仍自动纳入），并强化 scope 解析（裸写也认）；负控**在完整 worktree 上**三向验过：原状 exit 0 / rules.md 注入 exit 1 点名 / contract.md 无反引号注入 exit 1 点名。gates exit 0。第 3 轮（上限 2 次已于第 2 轮触发并由 CFO 裁决续跑）。遗留交 CFO：arbiter report.json 仍 status=blocked（其 escalation 已被本轮脚本修正解除）。 |
