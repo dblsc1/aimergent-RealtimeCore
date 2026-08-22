@@ -4,8 +4,8 @@
   "role": "arbiter",
   "task": "governance-promotion 第3轮：执行 CFO 定点裁决——删除「copycat 只消费 transport/」排他断言、判据改述、消费方清单补登 concurrency//queue/、消费范围单一事实源化。不改代码、不改 review/。",
   "tier": "normal",
-  "status": "blocked",
-  "summary": "按 CFO 定点裁决完成四项修正，并自行复核了 CFO 给的事实（去 copycat main 5ffe401 只读实查，逐条命中完全一致：concurrency/locks 7 处生产 import 含组合根 app.js:67、queue/ 3 处、session/ 仅 sqlite-log-store.js 且未接组合根、machine/ 零命中）。①四处排他断言整句删除（contract.md 非目标节、rules.md P5、handoff.md 技术债条、contract.md 变更记录复述行），只留触发条件+指针；②rules.md P5 判据改述为「本条真正相关的 session/ 端口（logStore/snapshotStore）截至目前仍是 0 个生产环境实际消费者」——判据本身不变，只是不再靠假话支撑；③contract.md 消费方清单表补登 concurrency/、queue/ 两个面并逐条列 file:line，另补核实基准（copycat main 5ffe401 + 统计口径 + 检测脚本路径）使复核可复现——该表被声明为 CR 影响面评估依据，漏登会使改这两面的 CR 被误评为「不影响 copycat」而实际打断 10 处生产 import；④消费范围此后单一事实源 = contract.md 清单表；铁律11 全文自查时又抓到三处 CFO 清单未点名、检测脚本因不含「只消费」字样而抓不到的同类残留副本（rules.md 工作模式节、rules.md P3b 条尾、handoff.md 概述节），一并削成纯指针——不修它们等于本轮又是「只修脚本看得见的、别处掉队」，即前两轮被打回的同一个坑。另补 contract.md 变更记录一行。零代码改动；未碰 review/、未碰 rules.md P5 符号中性化条、历史留痕（旧 worklog/reviewreport/backend report.json）一律保留原措辞。验证：check-consumer-scope.sh B1 段 4/4 PASS（concurrency//queue/ 由 FAIL 转 PASS）、B2 段 contract/rules/handoff 全部 FAIL 消除；run-gates.sh exit 0 全绿。**status=blocked 的唯一原因**：脚本残留一条 FAIL 落在 module_docs/reviewlog.md:5——那是 reviewagent 台账**转述**这句错话以记录 finding，不是文档在做断言，B2 段无法区分转述与断言。该行与脚本在同一 commit 8452b88 被一起引入（reviewer 负控跑在只含三文件的临时树上，从未看见自己的台账行踩自己的脚本）。reviewlog.md 是 reviewagent 专属写属主（项目级沙盒明列 arbiter 禁写）且属审核历史留痕（CFO 明令保留原措辞），脚本亦属 reviewagent——两者我都无权动，按 CFO「认为脚本有 bug 就停下报，不要自己动」停下上报。在 reviewagent 收窄 B2 扫描面之前，任何人都无法在不越权的前提下让该脚本 exit 0。",
+  "status": "approved",
+  "summary": "按 CFO 定点裁决完成四项修正，并自行复核了 CFO 给的事实（去 copycat main 5ffe401 只读实查，逐条命中完全一致：concurrency/locks 7 处生产 import 含组合根 app.js:67、queue/ 3 处、session/ 仅 sqlite-log-store.js 且未接组合根、machine/ 零命中）。①四处排他断言整句删除（contract.md 非目标节、rules.md P5、handoff.md 技术债条、contract.md 变更记录复述行），只留触发条件+指针；②rules.md P5 判据改述为「本条真正相关的 session/ 端口（logStore/snapshotStore）截至目前仍是 0 个生产环境实际消费者」——判据本身不变，只是不再靠假话支撑；③contract.md 消费方清单表补登 concurrency/、queue/ 两个面并逐条列 file:line，另补核实基准（copycat main 5ffe401 + 统计口径 + 检测脚本路径）使复核可复现——该表被声明为 CR 影响面评估依据，漏登会使改这两面的 CR 被误评为「不影响 copycat」而实际打断 10 处生产 import；④消费范围此后单一事实源 = contract.md 清单表；铁律11 全文自查时又抓到三处 CFO 清单未点名、检测脚本因不含「只消费」字样而抓不到的同类残留副本（rules.md 工作模式节、rules.md P3b 条尾、handoff.md 概述节），一并削成纯指针——不修它们等于本轮又是「只修脚本看得见的、别处掉队」，即前两轮被打回的同一个坑。另补 contract.md 变更记录一行。零代码改动；未碰 review/、未碰 rules.md P5 符号中性化条、历史留痕（旧 worklog/reviewreport/backend report.json）一律保留原措辞。验证：check-consumer-scope.sh B1 段 4/4 PASS（concurrency//queue/ 由 FAIL 转 PASS）、B2 段 contract/rules/handoff 全部 FAIL 消除；run-gates.sh exit 0 全绿。**（已解除，见 blocker_resolved）上一版 status=blocked 的唯一原因**：脚本残留一条 FAIL 落在 module_docs/reviewlog.md:5——那是 reviewagent 台账**转述**这句错话以记录 finding，不是文档在做断言，B2 段无法区分转述与断言。该行与脚本在同一 commit 8452b88 被一起引入（reviewer 负控跑在只含三文件的临时树上，从未看见自己的台账行踩自己的脚本）。reviewlog.md 是 reviewagent 专属写属主（项目级沙盒明列 arbiter 禁写）且属审核历史留痕（CFO 明令保留原措辞），脚本亦属 reviewagent——两者我都无权动，按 CFO「认为脚本有 bug 就停下报，不要自己动」停下上报。在 reviewagent 收窄 B2 扫描面之前，任何人都无法在不越权的前提下让该脚本 exit 0。 【r3-close 更新】该阻塞已由 reviewagent 在 commit 5e6d8d8 解除——**修脚本（B2 段 denylist 排除 reviewlog.md + scope 解析认裸写），本分支 module_docs 零追改**，证实根因在脚本侧而非修法侧。CFO 终审 approved，并与 reviewagent 一并确认 arbiter 自查多改的 3 处该改、未越界。现 check-consumer-scope.sh exit 0、run-gates.sh exit 0，status 转终态 approved、escalation 置 null；原 escalation 叙述完整保留于 blocker_resolved.original_escalation。",
   "git": {
     "protocol": "embedded-self-v2",
     "branch": "chore/governance-promotion",
@@ -31,10 +31,7 @@
   "cross_module_impact": [
     "functions/copycat（唯一已核实消费方；本次零改动 copycat 任何文件，只在 realtime_core 侧把其实际消费面登记完整。**实质影响**：此前消费方清单只登记 transport//session//machine/，一个改 concurrency/locks 或 queue/ids·ordering 的 CR 会被评为「不影响 copycat」；实际 copycat 生产代码有 10 处 import（含组合根 app.js:67）会被打断。补登后 CR 影响面评估才成立。核实基准 copycat main 5ffe4016ff84cc05f42735aa2bfcaacce0a67aea）"
   ],
-  "escalation": {
-    "reason": "规则冲突",
-    "detail": "CFO 锁死的硬验收「check-consumer-scope.sh exit 0」在 arbiter 权限内不可达，且不是修法未做到位。脚本 B2 段扫描 module_docs/ 全部文件的「只消费」字样，对 module_docs/reviewlog.md:5 产生假阳性——该行是 reviewagent 台账**转述**错误断言以记录 finding（「……但修复文本断言 copycat「只消费 transport/」为事实错误（另有 concurrency/ 7 处含 app.js:67、queue/ 3 处）」），属历史留痕而非规范性断言。该行与脚本在同一 commit 8452b88 被一并引入，reviewer 的负控跑在只含 contract/rules/handoff 三文件的临时树上，故未暴露。冲突点：脚本归 reviewagent（CFO 明令 arbiter 只读、有疑停下上报）、reviewlog.md 亦归 reviewagent 且 CFO 明令保留历史原措辞 → arbiter 对两条修法路径都无写权。建议由 reviewagent 执行最小修法二选一：(a) B2 段扫描排除 reviewlog.md；(b) B2 段改为只扫 contract.md/rules.md/handoff.md 三份规范性文档白名单。修法落地后本分支应可直接 exit 0，无需再改 module_docs。"
-  },
+  "escalation": null,
   "rejection_history": [
     {
       "round": 1,
@@ -54,7 +51,7 @@
       "issue": "P2-1 修复文本新写入的「copycat 已落地但目前只消费 transport/」是事实错误（另有 concurrency/locks 7 处生产 import 含 app.js:67、queue/ 3 处），且与本仓 rules.md P5「符号中性化」自述的 copycat 硬依赖遗产面直接冲突；P2-2 contract.md 消费方清单漏登 concurrency//queue/，削弱 CR 影响面评估；P3-1 四份事实副本 + 两个互相竞争的事实源使漂移向量原样保留",
       "escalated": "达铁律「同一任务打回上限 2 次」，升级 CFO。CFO 维持打回，独立验证 reviewer 两条事实（「session/ 无生产消费者」为真、「只消费 transport/」为假）后下达四项定点修法，明确不重新论证、不扩大范围",
       "fix": "删排他断言 + 判据改述 + 清单补两面 + 消费范围单一事实源化；arbiter 自查另补三处脚本抓不到的同类残留副本",
-      "disposition": "已修正，同分支追加 commit（本报告）；硬验收 exit 0 受 reviewagent 脚本假阳性阻塞，见 escalation"
+      "disposition": "已修正，同分支 commit 0839cbf；硬验收 exit 0 一度受 reviewagent 脚本假阳性阻塞（arbiter 停下上报、未越权动他人写域），该阻塞由 reviewagent 在 5e6d8d8 修脚本解除，**module_docs 零追改**。CFO 第 3 轮终审 approved。"
     }
   ],
   "self_check": {
@@ -85,8 +82,22 @@
   ],
   "module_gates": {
     "cmd": "bash review/reviewcode/module_docs/check-consumer-scope.sh",
-    "result": "exit 1（唯一残留 FAIL = reviewlog.md:5 假阳性，见 escalation）",
-    "b1": "4/4 PASS —— concurrency/、queue/、session/、transport/ 全部已登记（本轮前 concurrency//queue/ 为 FAIL）",
-    "b2": "contract.md / rules.md / handoff.md 的 FAIL 全部消除（本轮前 4 条）"
+    "result": "**exit 0**（在 5e6d8d8 上复跑）",
+    "b1": "4/4 PASS —— concurrency/、queue/、session/、transport/ 全部已登记（r3 前 concurrency//queue/ 为 FAIL）",
+    "b2": "规范性文档零「只消费 …」排他断言；reviewlog.md 由脚本自身 denylist 显式 skip（历史留痕，引述非断言）",
+    "history": "r3 提交时本项为 exit 1，唯一 FAIL 是脚本对 reviewlog.md 的假阳性，非修法缺口——见 blocker_resolved"
+  },
+  "blocker_resolved": {
+    "was": "本报告上一版 status=blocked、escalation.reason=规则冲突。**当时的判断是对的、阻塞是真实且不可达的**，此处完整保留原叙述，以便将来看出结论怎么变的。",
+    "original_escalation": {
+      "reason": "规则冲突",
+      "detail": "CFO 锁死的硬验收「check-consumer-scope.sh exit 0」在 arbiter 权限内不可达，且不是修法未做到位。脚本 B2 段扫描 module_docs/ 全部文件的「只消费」字样，对 module_docs/reviewlog.md:5 产生假阳性——该行是 reviewagent 台账**转述**错误断言以记录 finding（「……但修复文本断言 copycat「只消费 transport/」为事实错误（另有 concurrency/ 7 处含 app.js:67、queue/ 3 处）」），属历史留痕而非规范性断言。该行与脚本在同一 commit 8452b88 被一并引入，reviewer 的负控跑在只含 contract/rules/handoff 三文件的临时树上，故未暴露。冲突点：脚本归 reviewagent（CFO 明令 arbiter 只读、有疑停下上报）、reviewlog.md 亦归 reviewagent 且 CFO 明令保留历史原措辞 → arbiter 对两条修法路径都无写权。建议由 reviewagent 执行最小修法二选一：(a) B2 段扫描排除 reviewlog.md；(b) B2 段改为只扫 contract.md/rules.md/handoff.md 三份规范性文档白名单。修法落地后本分支应可直接 exit 0，无需再改 module_docs。"
+    },
+    "resolved_by": "reviewagent",
+    "resolved_in_commit": "5e6d8d8364c93b6132a40742639e11c99092600d",
+    "how": "**修脚本，不改文档**——`review/reviewcode/module_docs/check-consumer-scope.sh` 的 B2 段改为 denylist 排除 `module_docs/reviewlog.md`（审核历史留痕天然会引述错误断言，不属规范性断言面），并把 scope 解析加强到认裸写（无反引号）。**本分支的 module_docs 未因此再改一个字**——即阻塞的根因确实在脚本侧，不在 r3 的修法侧。",
+    "why_denylist_not_allowlist": "arbiter 原建议的两种修法之一是「白名单 contract/rules/handoff 三份」；reviewagent 与 CFO 选了 denylist，理由更强：allowlist 对将来新增进 `module_docs/` 的规范性文档会 fail-open 静默漏检，denylist 只豁免明确的历史留痕面。此处记下，免得后人以为白名单被漏做了。",
+    "verification": "CFO 在完整 worktree 上跑负控确认判别力：向 rules.md 注入无反引号的「只消费 transport/ 一个面」→ exit 1 并精确点名；还原后 exit 0、工作区干净。arbiter 在 5e6d8d8 上复跑 check-consumer-scope.sh → exit 0（B1 4/4 PASS；B2 规范性文档零排他断言，reviewlog.md 显式 skip）。",
+    "verdict": "CFO 终审 approved（第 3 轮）。CFO 与 reviewagent 一并判定：arbiter 在 CFO 点名 5 处之外自查多改的 3 处（rules.md 工作模式节、handoff.md 概述节、rules.md P3b 条尾）**该改、未越界**——其中前两处本身也是假的（同样漏 concurrency/+queue/），只改 CFO 点名处会被以铁律 11 再打回。"
   }
 }

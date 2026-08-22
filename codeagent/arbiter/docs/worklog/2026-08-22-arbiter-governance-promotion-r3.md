@@ -59,3 +59,28 @@
 - (b) 只扫 `contract.md`/`rules.md`/`handoff.md` 三份规范性文档白名单。
 
 在此之前 `check-consumer-scope.sh` 无法达到 exit 0，且**任何人都无法在不越权的前提下让它 exit 0**——这不是本轮修法未做到位。
+
+---
+
+## 收尾（r3-close，同日）：阻塞解除，报告转终态
+
+上一节记的死结**是真的，也确实解除了**——但解除方式值得记一笔：**改的是脚本，不是文档。本分支的 `module_docs/` 没有因此再动一个字。** 这反过来证明了当时的判断：残留那条 FAIL 的根因在检测脚本侧，不在 r3 的修法侧；如果我当时为了"让它变绿"去改 `reviewlog.md` 或改脚本，就是拿越权掩盖一个本该由属主修的缺陷。
+
+- 解除者：reviewagent，commit `5e6d8d8`。
+- 修法：B2 段改为 **denylist 排除 `module_docs/reviewlog.md`**（审核历史留痕天然会引述错误断言，不属规范性断言面），顺带把 scope 解析加强到认裸写（无反引号）。
+- **没有采纳我建议的白名单方案，理由比我的更强**：allowlist 对将来新增进 `module_docs/` 的规范性文档会 **fail-open 静默漏检**，denylist 只豁免明确的历史留痕面。我原来的 (b) 方案在这一点上是错的——记下来，免得后人以为白名单被漏做了，也提醒自己"缩小扫描面"默认该选 denylist。
+- CFO 在完整 worktree 上跑了负控确认判别力（注入无反引号的「只消费 transport/ 一个面」到 rules.md → exit 1 精确点名；还原后 exit 0、工作区干净）。我在 `5e6d8d8` 上复跑 `check-consumer-scope.sh` → **exit 0**（B1 4/4 PASS；B2 规范性文档零排他断言，reviewlog.md 显式 skip）。
+
+**CFO 终审 approved（第 3 轮）。** 另：CFO 与 reviewagent 一并判定，我在 CFO 点名 5 处之外自查多改的 3 处（`rules.md` 工作模式节、`handoff.md` 概述节、`rules.md` P3b 条尾）**该改、未越界**；reviewagent 的说法比 CFO 更准——那三处里前两处本身还是假的（同样漏 `concurrency/`+`queue/`），只改 CFO 点名的 5 处，这轮就该以铁律 11 再被打回。**教训固化：定点裁决划的是"必须改到"的下界，不是"只准改这些"的上界；铁律 11 的全文自查始终要自己走一遍。**
+
+### 本次改动
+
+- `codeagent/arbiter/docs/report.json`：`status` `blocked` → `approved`，`escalation` 置 `null`。
+- **原 escalation 叙述没有被抹掉**，整体搬进新的 `blocker_resolved` 字段（含 `original_escalation` 原文、解除者/commit/方式、denylist 优于 allowlist 的理由、双方负控证据、终审结论）。这份报告要随 PR 合进 main 成为永久记录——留痕的价值在于能看出结论**怎么**变的；直接删掉 escalation 只会让将来的接收方看到一个没有来历的 approved。同理 `module_gates` 保留 `history` 一行说明它曾经 exit 1 及其原因。
+- 本 worklog 追加本节。
+
+### 验证（在 `5e6d8d8` 之上）
+
+- `bash review/reviewcode/module_docs/check-consumer-scope.sh` → **exit 0**（脚本未被我触碰，`git status` 可证）。
+- `bash ci/gates/run-gates.sh` → **exit 0**。
+- 未碰主检出、未碰 `review/`、未碰 `module_docs/reviewlog.md`、未碰 `module_docs/` 任何文件、零代码改动。
